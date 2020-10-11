@@ -322,6 +322,80 @@ hf.piecewise (is_measurable_le hf hg) hg
 
 end decidable_linear_order
 
+/-!
+### Typeclasses for measurability of arithmetic operations
+-/
+
+section mul
+
+class has_measurable_add (M : Type*) [measurable_space M] [has_add M] : Prop :=
+(measurable_const_add : ∀ c : M, measurable ((+) c))
+(measurable_add_const : ∀ c : M, measurable (+ c))
+
+@[to_additive]
+class has_measurable_mul (M : Type*) [measurable_space M] [has_mul M] : Prop :=
+(measurable_const_mul : ∀ c : M, measurable ((*) c))
+(measurable_mul_const : ∀ c : M, measurable (* c))
+
+class has_measurable_add2 (M : Type*) [measurable_space M] [has_add M] : Prop :=
+(measurable_add : measurable (λ p : M × M, p.1 + p.2))
+
+@[to_additive has_measurable_add2]
+class has_measurable_mul2 (M : Type*) [measurable_space M] [has_mul M] : Prop :=
+(measurable_mul : measurable (λ p : M × M, p.1 * p.2))
+
+variables {M : Type*} [measurable_space M] [has_mul M]
+
+export has_measurable_mul2 (measurable_mul)
+
+@[to_additive]
+lemma measurable.mul [has_measurable_mul2 M] {f g : δ → M} (hf : measurable f) (hg : measurable g) :
+  measurable (λ a, f a * g a) :=
+measurable_mul.comp (hf.prod_mk hg)
+
+@[priority 100, to_additive]
+instance has_measurable_mul2.to_has_measurable_mul [has_measurable_mul2 M] :
+  has_measurable_mul M :=
+⟨λ c, measurable_const.mul measurable_id, λ c, measurable_id.mul measurable_const⟩
+
+@[to_additive]
+lemma measurable.const_mul [has_measurable_mul M] {f : δ → M} (hf : measurable f) (c : M) :
+  measurable (λ x, c * f x) :=
+(has_measurable_mul.measurable_const_mul c).comp hf
+
+@[to_additive]
+lemma measurable.mul_const [has_measurable_mul M] {f : δ → M} (hf : measurable f) (c : M) :
+  measurable (λ x, f x * c) :=
+(has_measurable_mul.measurable_mul_const c).comp hf
+
+end mul
+
+section inv
+
+variables {G : Type*} [measurable_space G] [has_inv G]
+
+class has_measurable_neg (G : Type*) [measurable_space G] [has_neg G] : Prop :=
+(measurable_neg : measurable (has_neg.neg : G → G))
+
+@[to_additive]
+class has_measurable_inv (G : Type*) [measurable_space G] [has_inv G] : Prop :=
+(measurable_inv : measurable (has_inv.inv : G → G))
+
+export has_measurable_inv (measurable_inv) has_measurable_neg (measurable_neg)
+
+@[to_additive]
+lemma measurable.inv [has_measurable_inv G] {f : δ → G} (hf : measurable f) :
+  measurable (λ x, (f x)⁻¹) :=
+measurable_inv.comp hf
+
+end inv
+
+section div
+
+variables {R : Type*} [measurable_space R]
+
+end div
+
 /-- A continuous function from an `opens_measurable_space` to a `borel_space`
 is measurable. -/
 lemma continuous.measurable {f : α → γ} (hf : continuous f) :
