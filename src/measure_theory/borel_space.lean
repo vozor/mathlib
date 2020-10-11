@@ -322,6 +322,34 @@ hf.piecewise (is_measurable_le hf hg) hg
 
 end decidable_linear_order
 
+/-- A continuous function from an `opens_measurable_space` to a `borel_space`
+is measurable. -/
+lemma continuous.measurable {f : α → γ} (hf : continuous f) :
+  measurable f :=
+hf.borel_measurable.mono opens_measurable_space.borel_le
+  (le_of_eq $ borel_space.measurable_eq)
+
+/-- A homeomorphism between two Borel spaces is a measurable equivalence.-/
+def homeomorph.to_measurable_equiv {α : Type*} {β : Type*} [topological_space α]
+  [measurable_space α] [borel_space α] [topological_space β] [measurable_space β]
+  [borel_space β] (h : α ≃ₜ β) :
+  measurable_equiv α β :=
+{ measurable_to_fun := h.continuous_to_fun.measurable,
+  measurable_inv_fun := h.continuous_inv_fun.measurable,
+  .. h }
+
+lemma measurable_of_continuous_on_compl_singleton [t1_space α] {f : α → γ} (a : α)
+  (hf : continuous_on f {x | x ≠ a}) :
+  measurable f :=
+measurable_of_measurable_on_compl_singleton a
+  (continuous_on_iff_continuous_restrict.1 hf).measurable
+
+lemma continuous.measurable2 [second_countable_topology α] [second_countable_topology β]
+  {f : δ → α} {g : δ → β} {c : α → β → γ}
+  (h : continuous (λ p : α × β, c p.1 p.2)) (hf : measurable f) (hg : measurable g) :
+  measurable (λ a, c (f a) (g a)) :=
+h.measurable.comp (hf.prod_mk hg)
+
 /-!
 ### Typeclasses for measurability of arithmetic operations
 -/
@@ -368,6 +396,17 @@ lemma measurable.mul_const [has_measurable_mul M] {f : δ → M} (hf : measurabl
   measurable (λ x, f x * c) :=
 (has_measurable_mul.measurable_mul_const c).comp hf
 
+@[priority 100]
+instance has_continuous_mul.to_has_measurable_mul [topological_space M] [has_continuous_mul M]
+  [borel_space M] : has_measurable_mul M :=
+⟨λ c, (continuous_const.mul continuous_id).measurable,
+  λ c, (continuous_id.mul continuous_const).measurable⟩
+
+@[priority 100]
+instance has_continuous_mul.to_has_measurable_mul2 [topological_space M] [has_continuous_mul M]
+  [second_countable_topology M] [borel_space M] : has_measurable_mul2 M :=
+⟨continuous_mul.measurable⟩
+
 end mul
 
 section inv
@@ -390,39 +429,19 @@ measurable_inv.comp hf
 
 end inv
 
+@[priority 100, to_additive]
+lemma topological_group.to_has_measurable_inv {G : Type*} [group G] [topological_space G]
+  [topological_group G] [measurable_space G] [borel_space G] :
+  has_measurable_inv G :=
+⟨continuous_inv.measurable⟩
+
 section div
 
-variables {R : Type*} [measurable_space R]
+variables {R : Type*} [has_div R] [measurable_space R]
+
+class has_measurable_div2 (R : Type*) 
 
 end div
-
-/-- A continuous function from an `opens_measurable_space` to a `borel_space`
-is measurable. -/
-lemma continuous.measurable {f : α → γ} (hf : continuous f) :
-  measurable f :=
-hf.borel_measurable.mono opens_measurable_space.borel_le
-  (le_of_eq $ borel_space.measurable_eq)
-
-/-- A homeomorphism between two Borel spaces is a measurable equivalence.-/
-def homeomorph.to_measurable_equiv {α : Type*} {β : Type*} [topological_space α]
-  [measurable_space α] [borel_space α] [topological_space β] [measurable_space β]
-  [borel_space β] (h : α ≃ₜ β) :
-  measurable_equiv α β :=
-{ measurable_to_fun := h.continuous_to_fun.measurable,
-  measurable_inv_fun := h.continuous_inv_fun.measurable,
-  .. h }
-
-lemma measurable_of_continuous_on_compl_singleton [t1_space α] {f : α → γ} (a : α)
-  (hf : continuous_on f {x | x ≠ a}) :
-  measurable f :=
-measurable_of_measurable_on_compl_singleton a
-  (continuous_on_iff_continuous_restrict.1 hf).measurable
-
-lemma continuous.measurable2 [second_countable_topology α] [second_countable_topology β]
-  {f : δ → α} {g : δ → β} {c : α → β → γ}
-  (h : continuous (λ p : α × β, c p.1 p.2)) (hf : measurable f) (hg : measurable g) :
-  measurable (λ a, c (f a) (g a)) :=
-h.measurable.comp (hf.prod_mk hg)
 
 lemma measurable.smul [semiring α] [second_countable_topology α]
   [add_comm_monoid γ] [second_countable_topology γ]
