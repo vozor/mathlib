@@ -11,6 +11,24 @@ import topology.homeomorph
 
 /-!
 # Theory of topological groups
+
+This file defines the following typeclasses:
+
+* `topological_group`, `topological_add_group`: multiplicative and additive topological groups,
+  i.e., groups with continuous `(*)` and `(⁻¹)` / `(+)` and `(-)`;
+
+* `has_continuous_sub G` means that `G` has a continuous subtraction operation.
+
+There is an instance deducing `has_continuous_sub` from `topological_group` but we use a separate
+typeclass because, e.g., `ℕ` and `ℝ≥0` have continuous subtraction but are not additive groups.
+
+We also define `homeomorph` versions of several `equiv`s: `homeomorph.mul_left`,
+`homeomorph.mul_right`, `homeomorph.inv`, and prove a few facts about neighbourhood filters in
+groups.
+
+## Tags
+
+topological space, group, topological group
 -/
 
 open classical set filter topological_space
@@ -29,7 +47,7 @@ In this section we prove a few statements about groups with continuous `(*)`.
 
 variables [topological_space G] [group G] [has_continuous_mul G]
 
-/-- Multiplication from the left in a topological group as a homeomorphism.-/
+/-- Multiplication from the left in a topological group as a homeomorphism. -/
 @[to_additive "Addition from the left in a topological additive group as a homeomorphism."]
 protected def homeomorph.mul_left (a : G) : G ≃ₜ G :=
 { continuous_to_fun  := continuous_const.mul continuous_id,
@@ -45,7 +63,7 @@ lemma is_open_map_mul_left (a : G) : is_open_map (λ x, a * x) :=
 lemma is_closed_map_mul_left (a : G) : is_closed_map (λ x, a * x) :=
 (homeomorph.mul_left a).is_closed_map
 
-/-- Multiplication from the right in a topological group as a homeomorphism.-/
+/-- Multiplication from the right in a topological group as a homeomorphism. -/
 @[to_additive "Addition from the right in a topological additive group as a homeomorphism."]
 protected def homeomorph.mul_right (a : G) :
   G ≃ₜ G :=
@@ -139,7 +157,7 @@ instance [topological_space H] [group H] [topological_group H] :
 
 variable (G)
 
-/-- Inversion in a topological group as a homeomorphism.-/
+/-- Inversion in a topological group as a homeomorphism. -/
 @[to_additive "Negation in a topological group as a homeomorphism."]
 protected def homeomorph.inv : G ≃ₜ G :=
 { continuous_to_fun  := continuous_inv,
@@ -225,7 +243,7 @@ attribute [instance] topological_add_group_quotient
 end quotient_topological_group
 
 /-- A typeclass saying that `λ p : G × G, p.1 - p.2` is a continuous function. This property
-automatically holds for topological additive groups but it also holds, e.g., for `ℝ≥0`-/
+automatically holds for topological additive groups but it also holds, e.g., for `ℝ≥0`. -/
 class has_continuous_sub (G : Type*) [topological_space G] [has_sub G] : Prop :=
 (continuous_sub : continuous (λ p : G × G, p.1 - p.2))
 
