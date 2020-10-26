@@ -59,7 +59,7 @@ end
 
 @[simp] lemma eval₂_X_pow {n : ℕ} : (X^n).eval₂ f x = x^n :=
 begin
-  rw ←monomial_one_eq_X_pow,
+  rw X_pow_eq_monomial,
   convert eval₂_monomial f x,
   simp,
 end
@@ -293,6 +293,12 @@ by rw [← C_1, C_comp]
 
 @[simp] lemma mul_comp {R : Type*} [comm_semiring R] (p q r : polynomial R) :
   (p * q).comp r = p.comp r * q.comp r := eval₂_mul _ _
+
+@[simp] lemma bit0_comp : comp (bit0 p : polynomial R) q = bit0 (p.comp q) :=
+by simp only [bit0, add_comp]
+
+@[simp] lemma bit1_comp : comp (bit1 p : polynomial R) q = bit1 (p.comp q) :=
+by simp only [bit1, add_comp, bit0_comp, one_comp]
 
 lemma comp_assoc {R : Type*} [comm_semiring R] (φ ψ χ : polynomial R) :
   (φ.comp ψ).comp χ = φ.comp (ψ.comp χ) :=
