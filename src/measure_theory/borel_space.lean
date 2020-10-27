@@ -339,7 +339,7 @@ def homeomorph.to_measurable_equiv {α : Type*} {β : Type*} [topological_space 
   .. h }
 
 lemma measurable_of_continuous_on_compl_singleton [t1_space α] {f : α → γ} (a : α)
-  (hf : continuous_on f {x | x ≠ a}) :
+  (hf : continuous_on f {a}ᶜ) :
   measurable f :=
 measurable_of_measurable_on_compl_singleton a
   (continuous_on_iff_continuous_restrict.1 hf).measurable
@@ -349,135 +349,6 @@ lemma continuous.measurable2 [second_countable_topology α] [second_countable_to
   (h : continuous (λ p : α × β, c p.1 p.2)) (hf : measurable f) (hg : measurable g) :
   measurable (λ a, c (f a) (g a)) :=
 h.measurable.comp (hf.prod_mk hg)
-
-/-!
-### Typeclasses for measurability of arithmetic operations
--/
-
-section mul
-
-class has_measurable_add (M : Type*) [measurable_space M] [has_add M] : Prop :=
-(measurable_const_add : ∀ c : M, measurable ((+) c))
-(measurable_add_const : ∀ c : M, measurable (+ c))
-
-@[to_additive]
-class has_measurable_mul (M : Type*) [measurable_space M] [has_mul M] : Prop :=
-(measurable_const_mul : ∀ c : M, measurable ((*) c))
-(measurable_mul_const : ∀ c : M, measurable (* c))
-
-class has_measurable_add2 (M : Type*) [measurable_space M] [has_add M] : Prop :=
-(measurable_add : measurable (λ p : M × M, p.1 + p.2))
-
-@[to_additive has_measurable_add2]
-class has_measurable_mul2 (M : Type*) [measurable_space M] [has_mul M] : Prop :=
-(measurable_mul : measurable (λ p : M × M, p.1 * p.2))
-
-variables {M : Type*} [measurable_space M] [has_mul M]
-
-export has_measurable_mul2 (measurable_mul)
-
-@[to_additive]
-lemma measurable.mul [has_measurable_mul2 M] {f g : δ → M} (hf : measurable f) (hg : measurable g) :
-  measurable (λ a, f a * g a) :=
-measurable_mul.comp (hf.prod_mk hg)
-
-@[priority 100, to_additive]
-instance has_measurable_mul2.to_has_measurable_mul [has_measurable_mul2 M] :
-  has_measurable_mul M :=
-⟨λ c, measurable_const.mul measurable_id, λ c, measurable_id.mul measurable_const⟩
-
-@[to_additive]
-lemma measurable.const_mul [has_measurable_mul M] {f : δ → M} (hf : measurable f) (c : M) :
-  measurable (λ x, c * f x) :=
-(has_measurable_mul.measurable_const_mul c).comp hf
-
-@[to_additive]
-lemma measurable.mul_const [has_measurable_mul M] {f : δ → M} (hf : measurable f) (c : M) :
-  measurable (λ x, f x * c) :=
-(has_measurable_mul.measurable_mul_const c).comp hf
-
-@[priority 100]
-instance has_continuous_mul.to_has_measurable_mul [topological_space M] [has_continuous_mul M]
-  [borel_space M] : has_measurable_mul M :=
-⟨λ c, (continuous_const.mul continuous_id).measurable,
-  λ c, (continuous_id.mul continuous_const).measurable⟩
-
-@[priority 100]
-instance has_continuous_mul.to_has_measurable_mul2 [topological_space M] [has_continuous_mul M]
-  [second_countable_topology M] [borel_space M] : has_measurable_mul2 M :=
-⟨continuous_mul.measurable⟩
-
-end mul
-
-section inv
-
-variables {G : Type*} [measurable_space G] [has_inv G]
-
-class has_measurable_neg (G : Type*) [measurable_space G] [has_neg G] : Prop :=
-(measurable_neg : measurable (has_neg.neg : G → G))
-
-@[to_additive]
-class has_measurable_inv (G : Type*) [measurable_space G] [has_inv G] : Prop :=
-(measurable_inv : measurable (has_inv.inv : G → G))
-
-export has_measurable_inv (measurable_inv) has_measurable_neg (measurable_neg)
-
-@[to_additive]
-lemma measurable.inv [has_measurable_inv G] {f : δ → G} (hf : measurable f) :
-  measurable (λ x, (f x)⁻¹) :=
-measurable_inv.comp hf
-
-end inv
-
-@[priority 100, to_additive]
-lemma topological_group.to_has_measurable_inv {G : Type*} [group G] [topological_space G]
-  [topological_group G] [measurable_space G] [borel_space G] :
-  has_measurable_inv G :=
-⟨continuous_inv.measurable⟩
-
-section div
-
-variables {R : Type*} [has_div R] [measurable_space R]
-
-class has_measurable_div2 (R : Type*) 
-
-end div
-
-lemma measurable.smul [semiring α] [second_countable_topology α]
-  [add_comm_monoid γ] [second_countable_topology γ]
-  [semimodule α γ] [topological_semimodule α γ]
-  {f : δ → α} {g : δ → γ} (hf : measurable f) (hg : measurable g) :
-  measurable (λ c, f c • g c) :=
-continuous_smul.measurable2 hf hg
-
-lemma measurable.const_smul {R M : Type*} [topological_space R] [semiring R]
-  [add_comm_monoid M] [semimodule R M] [topological_space M] [topological_semimodule R M]
-  [measurable_space M] [borel_space M]
-  {f : δ → M} (hf : measurable f) (c : R) :
-  measurable (λ x, c • f x) :=
-(continuous_const.smul continuous_id).measurable.comp hf
-
-lemma measurable_const_smul_iff {α : Type*} [topological_space α]
-  [division_ring α] [add_comm_monoid γ]
-  [semimodule α γ] [topological_semimodule α γ]
-  {f : δ → γ} {c : α} (hc : c ≠ 0) :
-  measurable (λ x, c • f x) ↔ measurable f :=
-⟨λ h, by simpa only [smul_smul, inv_mul_cancel hc, one_smul] using h.const_smul c⁻¹,
-  λ h, h.const_smul c⟩
-
-lemma measurable.const_mul {R : Type*} [topological_space R] [measurable_space R]
-  [borel_space R] [semiring R] [topological_semiring R]
-  {f : δ → R} (hf : measurable f) (c : R) :
-  measurable (λ x, c * f x) :=
-hf.const_smul c
-
-lemma measurable.mul_const {R : Type*} [topological_space R] [measurable_space R]
-  [borel_space R] [semiring R] [topological_semiring R]
-  {f : δ → R} (hf : measurable f) (c : R) :
-  measurable (λ x, f x * c) :=
-(continuous_id.mul continuous_const).measurable.comp hf
-
-end
 
 section borel_space
 variables [topological_space α] [measurable_space α] [borel_space α]
@@ -497,57 +368,6 @@ instance prod.borel_space [second_countable_topology α] [second_countable_topol
   borel_space (α × β) :=
 ⟨le_antisymm prod_le_borel_prod opens_measurable_space.borel_le⟩
 
-@[to_additive]
-lemma measurable_mul [has_mul α] [has_continuous_mul α] [second_countable_topology α] :
-  measurable (λ p : α × α, p.1 * p.2) :=
-continuous_mul.measurable
-
-@[to_additive]
-lemma measurable.mul [has_mul α] [has_continuous_mul α] [second_countable_topology α]
-  {f : δ → α} {g : δ → α} : measurable f → measurable g → measurable (λ a, f a * g a) :=
-continuous_mul.measurable2
-
-/-- A variant of `measurable.mul` that uses `*` on functions -/
-@[to_additive]
-lemma measurable.mul' [has_mul α] [has_continuous_mul α] [second_countable_topology α]
-  {f : δ → α} {g : δ → α} : measurable f → measurable g → measurable (f * g) :=
-measurable.mul
-
-@[to_additive]
-lemma measurable_mul_left [has_mul α] [has_continuous_mul α] (x : α) :
-  measurable (λ y : α, x * y) :=
-continuous.measurable $ continuous_const.mul continuous_id
-
-@[to_additive]
-lemma measurable_mul_right [has_mul α] [has_continuous_mul α] (x : α) :
-  measurable (λ y : α, y * x) :=
-continuous.measurable $ continuous_id.mul continuous_const
-
-@[to_additive]
-lemma finset.measurable_prod {ι : Type*} [comm_monoid α] [has_continuous_mul α]
-  [second_countable_topology α] {f : ι → δ → α} (s : finset ι) (hf : ∀i, measurable (f i)) :
-  measurable (λ a, ∏ i in s, f i a) :=
-finset.induction_on s
-  (by simp only [finset.prod_empty, measurable_const])
-  (assume i s his ih, by simpa [his] using (hf i).mul ih)
-
-@[to_additive]
-lemma measurable_inv [group α] [topological_group α] : measurable (has_inv.inv : α → α) :=
-continuous_inv.measurable
-
-@[to_additive]
-lemma measurable.inv [group α] [topological_group α] {f : δ → α} (hf : measurable f) :
-  measurable (λ a, (f a)⁻¹) :=
-measurable_inv.comp hf
-
-lemma measurable_inv' {α : Type*} [normed_field α] [measurable_space α] [borel_space α] :
-  measurable (has_inv.inv : α → α) :=
-measurable_of_continuous_on_compl_singleton 0 normed_field.continuous_on_inv
-
-lemma measurable.inv' {α : Type*} [normed_field α] [measurable_space α] [borel_space α]
-  {f : δ → α} (hf : measurable f) :
-  measurable (λ a, (f a)⁻¹) :=
-measurable_inv'.comp hf
 
 @[to_additive]
 lemma measurable.of_inv [group α] [topological_group α] {f : δ → α}
