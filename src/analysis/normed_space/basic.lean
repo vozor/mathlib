@@ -651,9 +651,9 @@ nnreal.eq $ by simp
 @[simp] lemma norm_fpow : ∀ (a : α) (n : ℤ), ∥a^n∥ = ∥a∥^n :=
 (norm_hom : α →* ℝ).map_fpow norm_zero
 
-lemma tendsto_inv {r : α} (r0 : r ≠ 0) : tendsto (λq, q⁻¹) (𝓝 r) (𝓝 r⁻¹) :=
+instance : has_continuous_inv' α :=
 begin
-  refine (nhds_basis_closed_ball.tendsto_iff nhds_basis_closed_ball).2 (λε εpos, _),
+  refine ⟨λ r r0, (nhds_basis_closed_ball.tendsto_iff nhds_basis_closed_ball).2 (λε εpos, _)⟩,
   let δ := min (ε/2 * ∥r∥^2) (∥r∥/2),
   have norm_r_pos : 0 < ∥r∥ := norm_pos_iff.mpr r0,
   have A : 0 < ε / 2 * ∥r∥ ^ 2 := mul_pos (half_pos εpos) (pow_pos norm_r_pos 2),
@@ -687,13 +687,6 @@ begin
   end
   ... = ε * (∥r∥ * ∥r∥⁻¹)^2 : by { generalize : ∥r∥⁻¹ = u, ring }
   ... = ε : by { rw [mul_inv_cancel (ne.symm (ne_of_lt norm_r_pos))], simp }
-end
-
-lemma continuous_on_inv : continuous_on (λ(x:α), x⁻¹) {x | x ≠ 0} :=
-begin
-  assume x hx,
-  apply continuous_at.continuous_within_at,
-  exact (tendsto_inv hx)
 end
 
 end normed_field
