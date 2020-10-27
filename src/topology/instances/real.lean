@@ -5,12 +5,10 @@ Authors: Johannes Hölzl, Mario Carneiro
 -/
 import topology.metric_space.basic
 import topology.algebra.uniform_group
-import topology.algebra.group_with_zero
 import topology.algebra.ring
 import topology.algebra.continuous_functions
 import ring_theory.subring
 import group_theory.archimedean
-
 /-!
 # Topological properties of ℝ
 -/
