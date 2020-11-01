@@ -194,7 +194,7 @@ variables {x : ℝ}
 open exp_neg_inv_glue
 
 lemma pos_denom (x) : 0 < exp_neg_inv_glue x + exp_neg_inv_glue (1 - x) :=
-((@zero_lt_one ℝ _).lt_or_lt x).elim
+((@zero_lt_one ℝ _ _).lt_or_lt x).elim
   (λ hx, add_pos_of_pos_of_nonneg (pos_of_pos hx) (nonneg _))
   (λ hx, add_pos_of_nonneg_of_pos (nonneg _) (pos_of_pos $ sub_pos.2 hx))
 
@@ -249,9 +249,26 @@ lemma times_cont_diff_at.inner {f g : F → E} {x : F} {n : with_top ℕ}
   times_cont_diff_at ℝ n (λ x, ⟪f x, g x⟫_ℝ) x :=
 hf.inner hg
 
+def local_homeomorph.sqr : local_homeomorph ℝ ℝ :=
+{ to_fun := λ x, x ^ 2,
+  inv_fun := real.sqrt,
+  source := Ioi 0,
+  target := Ioi 0,
+  map_source' := λ x hx, pow_pos (mem_Ioi.1 hx) _,
+  map_target' := λ x hx, real.sqrt_pos.2 hx,
+  open_source := is_open_Ioi,
+  open_target := is_open_Ioi,
+  left_inv' := λ x hx, real.sqrt_sqr (le_of_lt hx),
+  right_inv' := λ x hx, real.sqr_sqrt (le_of_lt hx),
+  continuous_to_fun := (continuous_pow 2).continuous_on,
+  continuous_inv_fun := continuous_sqrt.continuous_on }
+
 lemma real.times_cont_diff_at_sqrt {x : ℝ} (hx : x ≠ 0) {n} :
   times_cont_diff_at ℝ n real.sqrt x :=
-sorry
+begin
+  cases hx.lt_or_lt with hx hx,
+  {  }
+end
 
 lemma times_cont_diff_at_norm {x : E} (hx : x ≠ 0) {n} : times_cont_diff_at ℝ n norm x :=
 begin

@@ -3,7 +3,7 @@ Copyright (c) Sébastien Gouëzel. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Sébastien Gouëzel
 -/
-import analysis.calculus.deriv
+import analysis.calculus.times_cont_diff
 import analysis.normed_space.finite_dimension
 
 /-!
@@ -158,16 +158,10 @@ section real_deriv_of_complex
 open complex
 variables {e : ℂ → ℂ} {e' : ℂ} {z : ℝ}
 
-/--
-A preliminary lemma for `has_deriv_at_real_of_complex`,
-which we only separate out to keep the maximum compile time per declaration low.
--/
-lemma has_deriv_at_real_of_complex_aux (h : has_deriv_at e e' z) :
-  has_deriv_at (⇑continuous_linear_map.re ∘ λ {z : ℝ}, e (continuous_linear_map.of_real z))
-    (((continuous_linear_map.re.comp
-       ((continuous_linear_map.smul_right (1 : ℂ →L[ℂ] ℂ) e').restrict_scalars ℝ)).comp
-         continuous_linear_map.of_real) (1 : ℝ))
-    z :=
+/-- If a complex function is differentiable at a real point, then the induced real function is also
+differentiable at this point, with a derivative equal to the real part of the complex derivative. -/
+theorem has_deriv_at.real_of_complex (h : has_deriv_at e e' z) :
+  has_deriv_at (λx:ℝ, (e x).re) e'.re z :=
 begin
   have A : has_fderiv_at continuous_linear_map.of_real continuous_linear_map.of_real z :=
     continuous_linear_map.of_real.has_fderiv_at,
@@ -176,17 +170,19 @@ begin
     (has_deriv_at_iff_has_fderiv_at.1 h).restrict_scalars ℝ,
   have C : has_fderiv_at continuous_linear_map.re continuous_linear_map.re
     (e (continuous_linear_map.of_real z)) := continuous_linear_map.re.has_fderiv_at,
-  exact has_fderiv_at_iff_has_deriv_at.1 (C.comp z (B.comp z A)),
+  simpa using has_fderiv_at_iff_has_deriv_at.1 (C.comp z (B.comp z A)),
 end
 
-/-- If a complex function is differentiable at a real point, then the induced real function is also
-differentiable at this point, with a derivative equal to the real part of the complex derivative. -/
-theorem has_deriv_at_real_of_complex (h : has_deriv_at e e' z) :
-  has_deriv_at (λx:ℝ, (e x).re) e'.re z :=
+theorem times_cont_diff_at.real_of_complex {n : with_top ℕ} {x : ℝ} (h : times_cont_diff_at ℂ n e x) :
+  times_cont_diff_at ℝ n (λ x : ℝ, (e x).re) x :=
 begin
-  rw (show (λx:ℝ, (e x).re) = (continuous_linear_map.re : ℂ → ℝ) ∘ e ∘ (continuous_linear_map.of_real : ℝ → ℂ),
-    by { ext x, refl }),
-  simpa using has_deriv_at_real_of_complex_aux h,
+  have A : times_cont_diff_at ℝ n continuous_linear_map.of_real x,
+    from continuous_linear_map.of_real.times_cont_diff.times_cont_diff_at,
+  have B : times_cont_diff_at ℝ n e x :=
+    (h).restrict_scalars ℝ,
+  have C : has_fderiv_at continuous_linear_map.re continuous_linear_map.re
+    (e (continuous_linear_map.of_real z)) := continuous_linear_map.re.has_fderiv_at,
+ 
 end
 
 end real_deriv_of_complex

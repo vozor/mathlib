@@ -6,6 +6,7 @@ Authors: Chris Hughes, Abhimanyu Pallavi Sudhir, Jean Lo, Calle Sönne
 import data.complex.exponential
 import analysis.complex.basic
 import analysis.calculus.mean_value
+import analysis.calculus.times_cont_diff
 import measure_theory.borel_space
 
 /-!
@@ -69,6 +70,16 @@ funext $ λ x, (has_deriv_at_exp x).deriv
 lemma continuous_exp : continuous exp :=
 differentiable_exp.continuous
 
+lemma times_cont_diff_exp : ∀ {n}, times_cont_diff ℂ n exp :=
+begin
+  refine times_cont_diff_all_iff_nat.2 (λ n, _),
+  induction n with n ihn,
+  { exact times_cont_diff_zero.2 continuous_exp },
+  { rw times_cont_diff_succ_iff_deriv,
+    use differentiable_exp,
+    rwa deriv_exp }
+end
+
 lemma measurable_exp : measurable exp := continuous_exp.measurable
 
 end complex
@@ -112,6 +123,10 @@ hf.has_deriv_within_at.cexp.deriv_within hxs
   deriv (λx, complex.exp (f x)) x = complex.exp (f x) * (deriv f x) :=
 hc.has_deriv_at.cexp.deriv
 
+lemma times_cont_diff.cexp {n} (h : times_cont_diff ℂ n f) :
+  times_cont_diff ℂ n (λ x, complex.exp (f x)) :=
+complex.times_cont_diff_exp.comp h
+
 end
 
 namespace real
@@ -119,7 +134,7 @@ namespace real
 variables {x y z : ℝ}
 
 lemma has_deriv_at_exp (x : ℝ) : has_deriv_at exp (exp x) x :=
-has_deriv_at_real_of_complex (complex.has_deriv_at_exp x)
+(complex.has_deriv_at_exp x).real_of_complex
 
 lemma differentiable_exp : differentiable ℝ exp :=
 λx, (has_deriv_at_exp x).differentiable_at

@@ -5,6 +5,7 @@ Authors: Chris Hughes, Abhimanyu Pallavi Sudhir, Jean Lo, Calle Sönne, Sébasti
 -/
 import analysis.special_functions.trigonometric
 import analysis.calculus.extend_deriv
+import analysis.calculus.times_cont_diff
 
 /-!
 # Power function on `ℂ`, `ℝ`, `ℝ≥0`, and `ennreal`
@@ -690,6 +691,12 @@ lemma deriv_within_rpow_of_one_le (hf : differentiable_within_at ℝ f s x) (hp 
 @[simp] lemma deriv_rpow_of_one_le (hf : differentiable_at ℝ f x) (hp : 1 ≤ p) :
   deriv (λx, (f x)^p) x = (deriv f x) * p * (f x)^(p-1) :=
 (hf.has_deriv_at.rpow_of_one_le hp).deriv
+
+lemma times_cont_diff_on_rpow (p : ℝ) {n : with_top ℕ} :
+  times_cont_diff_on ℝ n (λ x : ℝ, x ^ p) {0}ᶜ :=
+begin
+  
+end
 
 /- Differentiability statements for the square root of a function, when the function does not
 vanish -/

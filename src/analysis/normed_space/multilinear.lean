@@ -510,6 +510,8 @@ begin
   exact squeeze_zero (λ n, norm_nonneg _) this b_lim,
 end
 
+#where
+
 end continuous_multilinear_map
 
 /-- If a continuous multilinear map is constructed from a multilinear map via the constructor

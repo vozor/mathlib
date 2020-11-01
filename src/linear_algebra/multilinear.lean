@@ -413,6 +413,16 @@ f.map_sum_finset g (λ i, finset.univ)
 
 end apply_sum
 
+section restrict_scalar
+
+variables (R) {R' : Type*} [semiring R'] [has_scalar R' R] [Π (i : ι), semimodule R' (M₁ i)]
+  [semimodule R' M₂] [∀ i, is_scalar_tower R' R (M₁ i)] [is_scalar_tower R' R M₂]
+
+def restrict_scalar (f : multilinear_map R' M₁ M₂) : multilinear_map R M₁ M₂ :=
+{ to_fun := f,
+  map_add' := f.map_add,
+  map_smul' := λ m i c x, (f.to_linear_map m i).map_smul_of_tower }
+
 end semiring
 
 end multilinear_map
