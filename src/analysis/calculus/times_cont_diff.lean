@@ -1326,7 +1326,7 @@ by simp only [← times_cont_diff_on_univ, times_cont_diff_on_all_iff_nat]
 
 lemma times_cont_diff.times_cont_diff_on {n : with_top ℕ}
   (h : times_cont_diff 𝕜 n f) : times_cont_diff_on 𝕜 n f s :=
-h(times_cont_diff_on_univ.2 h).mono (subset_univ _)
+(times_cont_diff_on_univ.2 h).mono (subset_univ _)
 
 @[simp] lemma times_cont_diff_zero :
   times_cont_diff 𝕜 0 f ↔ continuous f :=
