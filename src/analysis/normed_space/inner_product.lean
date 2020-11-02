@@ -1079,20 +1079,126 @@ use `euclidean_space 𝕜 (fin n)`.  -/
 def euclidean_space (𝕜 : Type*) [is_R_or_C 𝕜]
   (n : Type*) [fintype n] : Type* := pi_Lp 2 one_le_two (λ (i : n), 𝕜)
 
+section deriv
+
+lemma is_bounded_bilinear_map_inner : is_bounded_bilinear_map ℝ (λ p : F × F, ⟪p.1, p.2⟫_ℝ) :=
+{ add_left := λ _ _ _, inner_add_left,
+  smul_left := λ _ _ _, inner_smul_left,
+  add_right := λ _ _ _, inner_add_right,
+  smul_right := λ _ _ _, inner_smul_right,
+  bound := ⟨1, zero_lt_one, λ x y, by { rw one_mul, exact abs_real_inner_le_norm x y, }⟩ }
+
+lemma times_cont_diff_inner {n} : times_cont_diff ℝ n (λ p : F × F, ⟪p.1, p.2⟫_ℝ) :=
+is_bounded_bilinear_map_inner.times_cont_diff
+
+lemma times_cont_diff_at_inner {p : F × F} {n} :
+  times_cont_diff_at ℝ n (λ p : F × F, ⟪p.1, p.2⟫_ℝ) p :=
+times_cont_diff_inner.times_cont_diff_at
+
+lemma differentiable_inner : differentiable ℝ (λ p : F × F, ⟪p.1, p.2⟫_ℝ) :=
+times_cont_diff_inner.differentiable le_rfl
+
+-- TODO: generalize to `is_R_or_C`
+lemma continuous_inner : continuous (λ p : F × F, ⟪p.1, p.2⟫_ℝ) :=
+differentiable_inner.continuous
+
+variables {G : Type*} [normed_group G] [normed_space ℝ G]
+  {f g : G → F} {f' g' : G →L[ℝ] F} {s : set G} {x : G} {n : with_top ℕ}
+
+lemma times_cont_diff_within_at.inner (hf : times_cont_diff_within_at ℝ n f s x)
+  (hg : times_cont_diff_within_at ℝ n g s x) :
+  times_cont_diff_within_at ℝ n (λ x, ⟪f x, g x⟫_ℝ) s x :=
+times_cont_diff_at_inner.comp_times_cont_diff_within_at x (hf.prod hg)
+
+lemma times_cont_diff_at.inner (hf : times_cont_diff_at ℝ n f x)
+  (hg : times_cont_diff_at ℝ n g x) :
+  times_cont_diff_at ℝ n (λ x, ⟪f x, g x⟫_ℝ) x :=
+hf.inner hg
+
+lemma times_cont_diff_on.inner (hf : times_cont_diff_on ℝ n f s) (hg : times_cont_diff_on ℝ n g s) :
+  times_cont_diff_on ℝ n (λ x, ⟪f x, g x⟫_ℝ) s :=
+λ x hx, (hf x hx).inner (hg x hx)
+
+lemma times_cont_diff.inner (hf : times_cont_diff ℝ n f) (hg : times_cont_diff ℝ n g) :
+  times_cont_diff ℝ n (λ x, ⟪f x, g x⟫_ℝ) :=
+times_cont_diff_inner.comp (hf.prod hg)
+
+lemma differentiable_within_at.inner (hf : differentiable_within_at ℝ f s x)
+  (hg : differentiable_within_at ℝ g s x) :
+  differentiable_within_at ℝ (λ x, ⟪f x, g x⟫_ℝ) s x :=
+((differentiable_inner _).has_fderiv_at.comp_has_fderiv_within_at x
+  (hf.prod hg).has_fderiv_within_at).differentiable_within_at
+
+lemma differentiable_at.inner (hf : differentiable_at ℝ f x) (hg : differentiable_at ℝ g x) :
+  differentiable_at ℝ (λ x, ⟪f x, g x⟫_ℝ) x :=
+(differentiable_inner _).comp x (hf.prod hg)
+
+lemma differentiable_on.inner (hf : differentiable_on ℝ f s) (hg : differentiable_on ℝ g s) :
+  differentiable_on ℝ (λ x, ⟪f x, g x⟫_ℝ) s :=
+λ x hx, (hf x hx).inner (hg x hx)
+
+lemma differentiable.inner (hf : differentiable ℝ f) (hg : differentiable ℝ g) :
+  differentiable ℝ (λ x, ⟪f x, g x⟫_ℝ) :=
+λ x, (hf x).inner (hg x)
+
+lemma times_cont_diff_at_norm {x : F} (hx : x ≠ 0) {n} :
+  times_cont_diff_at ℝ n (norm : F → ℝ) x :=
+begin
+  have : (norm : F → ℝ) = λ x, sqrt (⟪x, x⟫_ℝ) := funext (norm_eq_sqrt_inner),
+  rw this,
+  refine (times_cont_diff_at_sqrt _).comp x (times_cont_diff_at_id.inner times_cont_diff_at_id),
+  rwa [ne.def, inner_self_eq_zero]
+end
+
+lemma differentiable_at_norm {x : F} (hx : x ≠ 0) :
+  differentiable_at ℝ (norm : F → ℝ) x :=
+(times_cont_diff_at_norm hx).differentiable_at le_rfl
+
+lemma times_cont_diff_at.norm (hf : times_cont_diff_at ℝ n f x) (hx : f x ≠ 0) :
+  times_cont_diff_at ℝ n (λ x, ∥f x∥) x :=
+(times_cont_diff_at_norm hx).comp x hf
+
+lemma times_cont_diff_within_at.norm (hf : times_cont_diff_within_at ℝ n f s x) (hx : f x ≠ 0) :
+  times_cont_diff_within_at ℝ n (λ x, ∥f x∥) s x :=
+(times_cont_diff_at_norm hx).comp_times_cont_diff_within_at x hf
+
+lemma times_cont_diff_on.norm (hf : times_cont_diff_on ℝ n f s) (h₀ : ∀ x ∈ s, f x ≠ 0) :
+  times_cont_diff_on ℝ n (λ x, ∥f x∥) s :=
+λ x hx, (hf x hx).norm (h₀ x hx)
+
+lemma times_cont_diff.norm (hf : times_cont_diff ℝ n f) (h₀ : ∀ x, f x ≠ 0) :
+  times_cont_diff ℝ n (λ x, ∥f x∥) :=
+times_cont_diff_iff_times_cont_diff_at.2 $ λ x, hf.times_cont_diff_at.norm (h₀ x)
+
+lemma differentiable_within_at.norm (hf : differentiable_within_at ℝ f s x) (h₀ : f x ≠ 0) :
+  differentiable_within_at ℝ (λ x, ∥f x∥) s x :=
+(differentiable_at_norm h₀).comp_differentiable_within_at x hf
+
+lemma differentiable_at.norm (hf : differentiable_at ℝ f x) (h₀ : f x ≠ 0) :
+  differentiable_at ℝ (λ x, ∥f x∥) x :=
+(differentiable_at_norm h₀).comp x hf
+
+lemma differentiable.norm (hf : differentiable ℝ f) (h₀ : ∀ x, f x ≠ 0) :
+  differentiable ℝ (λ x, ∥f x∥) :=
+λ x, (hf x).norm (h₀ x)
+
+lemma differentiable_on.norm (hf : differentiable_on ℝ f s) (h₀ : ∀ x ∈ s, f x ≠ 0) :
+  differentiable_on ℝ (λ x, ∥f x∥) s :=
+λ x hx, (hf x hx).norm (h₀ x hx)
+
+end deriv
+
 section is_R_or_C_to_real
 
 variables {G : Type*}
 
-variables (𝕜)
+variables (𝕜 E)
 include 𝕜
 
 /-- A general inner product implies a real inner product. This is not registered as an instance
 since it creates problems with the case `𝕜 = ℝ`. -/
 def has_inner.is_R_or_C_to_real : has_inner ℝ E :=
 { inner := λ x y, re ⟪x, y⟫ }
-
-lemma real_inner_eq_re_inner (x y : E) :
-  @has_inner.inner ℝ E (has_inner.is_R_or_C_to_real 𝕜) x y = re ⟪x, y⟫ := rfl
 
 /-- A general inner product space structure implies a real inner product structure. This is not
 registered as an instance since it creates problems with the case `𝕜 = ℝ`, but in can be used in a
@@ -1110,14 +1216,19 @@ def inner_product_space.is_R_or_C_to_real : inner_product_space ℝ E :=
     have : algebra_map ℝ 𝕜 r = r • (1 : 𝕜) := by simp [algebra_map, algebra.smul_def'],
     simp [this, inner_smul_left, smul_coe_mul_ax],
   end,
-  ..has_inner.is_R_or_C_to_real 𝕜,
+  ..has_inner.is_R_or_C_to_real 𝕜 E,
   ..normed_space.restrict_scalars ℝ 𝕜 E }
+
+variable {E}
+
+lemma real_inner_eq_re_inner (x y : E) :
+  @has_inner.inner ℝ E (has_inner.is_R_or_C_to_real 𝕜 E) x y = re ⟪x, y⟫ := rfl
 
 omit 𝕜
 
 /-- A complex inner product implies a real inner product -/
 instance inner_product_space.complex_to_real [inner_product_space ℂ G] : inner_product_space ℝ G :=
-inner_product_space.is_R_or_C_to_real ℂ
+inner_product_space.is_R_or_C_to_real ℂ G
 
 end is_R_or_C_to_real
 
@@ -1352,7 +1463,7 @@ This point `v` is usually called the orthogonal projection of `u` onto `K`.
 theorem exists_norm_eq_infi_of_complete_subspace (K : subspace 𝕜 E)
   (h : is_complete (↑K : set E)) : ∀ u : E, ∃ v ∈ K, ∥u - v∥ = ⨅ w : (K : set E), ∥u - w∥ :=
 begin
-  letI : inner_product_space ℝ E := inner_product_space.is_R_or_C_to_real 𝕜,
+  letI : inner_product_space ℝ E := inner_product_space.is_R_or_C_to_real 𝕜 E,
   letI : module ℝ E := restrict_scalars.semimodule ℝ 𝕜 E,
   letI : is_scalar_tower ℝ 𝕜 E := restrict_scalars.is_scalar_tower _ _ _,
   let K' : subspace ℝ E := submodule.restrict_scalars ℝ K,
@@ -1411,7 +1522,7 @@ for all `w ∈ K`, `⟪u - v, w⟫ = 0` (i.e., `u - v` is orthogonal to the subs
 theorem norm_eq_infi_iff_inner_eq_zero (K : subspace 𝕜 E) {u : E} {v : E}
   (hv : v ∈ K) : ∥u - v∥ = (⨅ w : (↑K : set E), ∥u - w∥) ↔ ∀ w ∈ K, ⟪u - v, w⟫ = 0 :=
 begin
-  letI : inner_product_space ℝ E := inner_product_space.is_R_or_C_to_real 𝕜,
+  letI : inner_product_space ℝ E := inner_product_space.is_R_or_C_to_real 𝕜 E,
   letI : module ℝ E := restrict_scalars.semimodule ℝ 𝕜 E,
   letI : is_scalar_tower ℝ 𝕜 E := restrict_scalars.is_scalar_tower _ _ _,
   let K' : subspace ℝ E := K.restrict_scalars ℝ,

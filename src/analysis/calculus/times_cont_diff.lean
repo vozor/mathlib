@@ -1253,7 +1253,7 @@ lemma times_cont_diff_at.continuous_at {n : with_top ℕ}
 by simpa [continuous_within_at_univ] using h.continuous_within_at
 
 /-- If a function is `C^n` with `n ≥ 1` at a point, then it is differentiable there. -/
-lemma times_cont_diff_at.differentiable {n : with_top ℕ}
+lemma times_cont_diff_at.differentiable_at {n : with_top ℕ}
   (h : times_cont_diff_at 𝕜 n f x) (hn : 1 ≤ n) : differentiable_at 𝕜 f x :=
 by simpa [hn, differentiable_within_at_univ] using h.differentiable_within_at
 
@@ -1326,7 +1326,7 @@ by simp only [← times_cont_diff_on_univ, times_cont_diff_on_all_iff_nat]
 
 lemma times_cont_diff.times_cont_diff_on {n : with_top ℕ}
   (h : times_cont_diff 𝕜 n f) : times_cont_diff_on 𝕜 n f s :=
-(times_cont_diff_on_univ.2 h).mono (subset_univ _)
+h(times_cont_diff_on_univ.2 h).mono (subset_univ _)
 
 @[simp] lemma times_cont_diff_zero :
   times_cont_diff 𝕜 0 f ↔ continuous f :=
@@ -2449,6 +2449,11 @@ begin
   exact λ x, (hf x).div (hg x) (h0 x)
 end
 
+lemma times_cont_diff.div_const [complete_space 𝕜] {f : E → 𝕜} {n} {c : 𝕜}
+  (hf : times_cont_diff 𝕜 n f) :
+  times_cont_diff 𝕜 n (λ x, f x / c) :=
+hf.mul times_cont_diff_const
+
 end algebra_inverse
 
 /-! ### Inversion of continuous linear maps between Banach spaces -/
@@ -2732,7 +2737,43 @@ over `𝕜`.
 variables (𝕜) {𝕜' : Type*} [nondiscrete_normed_field 𝕜'] [normed_algebra 𝕜 𝕜']
 variables [normed_space 𝕜' E] [is_scalar_tower 𝕜 𝕜' E]
 variables [normed_space 𝕜' F] [is_scalar_tower 𝕜 𝕜' F]
+variables {p' : E → formal_multilinear_series 𝕜' E F} {n : with_top ℕ}
 
-lemma times_cont_diff_within_at.restrict_scalar
+@[simp] def formal_multilinear_series.restrict_scalars (p : formal_multilinear_series 𝕜' E F) :
+  formal_multilinear_series 𝕜 E F :=
+λ n, (p n).restrict_scalars 𝕜
+
+lemma has_ftaylor_series_up_to_on.restrict_scalars
+  (h : has_ftaylor_series_up_to_on n f p' s) :
+  has_ftaylor_series_up_to_on n f (λ x, (p' x).restrict_scalars 𝕜) s :=
+{ zero_eq := λ x hx, h.zero_eq x hx,
+  fderiv_within :=
+    begin
+      intros m hm x hx,
+      convert ((continuous_multilinear_map.restrict_scalars_linear 𝕜).has_fderiv_at)
+        .comp_has_fderiv_within_at _ ((h.fderiv_within m hm x hx).restrict_scalars 𝕜),
+    end,
+  cont := λ m hm, continuous_multilinear_map.continuous_restrict_scalars.comp_continuous_on
+    (h.cont m hm) }
+
+lemma times_cont_diff_within_at.restrict_scalars (h : times_cont_diff_within_at 𝕜' n f s x) :
+  times_cont_diff_within_at 𝕜 n f s x :=
+begin
+  intros m hm,
+  rcases h m hm with ⟨u, u_mem, p', hp'⟩,
+  exact ⟨u, u_mem, _, hp'.restrict_scalars _⟩
+end
+
+lemma times_cont_diff_on.restrict_scalars (h : times_cont_diff_on 𝕜' n f s) :
+  times_cont_diff_on 𝕜 n f s :=
+λ x hx, (h x hx).restrict_scalars _
+
+lemma times_cont_diff_at.restrict_scalars (h : times_cont_diff_at 𝕜' n f x) :
+  times_cont_diff_at 𝕜 n f x :=
+times_cont_diff_within_at_univ.1 $ h.times_cont_diff_within_at.restrict_scalars _
+
+lemma times_cont_diff.restrict_scalars (h : times_cont_diff 𝕜' n f) :
+  times_cont_diff 𝕜 n f :=
+times_cont_diff_iff_times_cont_diff_at.2 $ λ x, h.times_cont_diff_at.restrict_scalars _
 
 end restrict_scalars

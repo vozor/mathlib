@@ -173,16 +173,20 @@ begin
   simpa using has_fderiv_at_iff_has_deriv_at.1 (C.comp z (B.comp z A)),
 end
 
-theorem times_cont_diff_at.real_of_complex {n : with_top ℕ} {x : ℝ} (h : times_cont_diff_at ℂ n e x) :
-  times_cont_diff_at ℝ n (λ x : ℝ, (e x).re) x :=
+theorem times_cont_diff_at.real_of_complex {n : with_top ℕ} (h : times_cont_diff_at ℂ n e z) :
+  times_cont_diff_at ℝ n (λ x : ℝ, (e x).re) z :=
 begin
-  have A : times_cont_diff_at ℝ n continuous_linear_map.of_real x,
+  have A : times_cont_diff_at ℝ n continuous_linear_map.of_real z,
     from continuous_linear_map.of_real.times_cont_diff.times_cont_diff_at,
-  have B : times_cont_diff_at ℝ n e x :=
-    (h).restrict_scalars ℝ,
-  have C : has_fderiv_at continuous_linear_map.re continuous_linear_map.re
-    (e (continuous_linear_map.of_real z)) := continuous_linear_map.re.has_fderiv_at,
- 
+  have B : times_cont_diff_at ℝ n e z := h.restrict_scalars ℝ,
+  have C : times_cont_diff_at ℝ n continuous_linear_map.re (e z),
+    from continuous_linear_map.re.times_cont_diff.times_cont_diff_at,
+  exact C.comp z (B.comp z A)
 end
+
+theorem times_cont_diff.real_of_complex {n : with_top ℕ} (h : times_cont_diff ℂ n e) :
+  times_cont_diff ℝ n (λ x : ℝ, (e x).re) :=
+times_cont_diff_iff_times_cont_diff_at.2 $ λ x,
+  h.times_cont_diff_at.real_of_complex
 
 end real_deriv_of_complex
