@@ -18,13 +18,16 @@ variables {C : Type u} [category.{v} C]
 
 open category limits
 
+section
+
+/-- The type of objects for the diagram indexing a wide (co)equalizer. -/
 @[derive decidable_eq, derive inhabited] inductive walking_parallel_chunk (J : Type v) : Type v
 | zero : walking_parallel_chunk
 | one : walking_parallel_chunk
 
 open walking_parallel_chunk
 
-/-- The type family of morphisms for the diagram indexing a (co)equalizer. -/
+/-- The type family of morphisms for the diagram indexing a wide (co)equalizer. -/
 @[derive decidable_eq] inductive walking_parallel_chunk_hom (J : Type v) :
   walking_parallel_chunk J → walking_parallel_chunk J → Type v
 | id : Π X : walking_parallel_chunk.{v} J, walking_parallel_chunk_hom X X
@@ -32,7 +35,7 @@ open walking_parallel_chunk
 
 open walking_parallel_chunk_hom
 
-/-- Composition of morphisms in the indexing diagram for (co)equalizers. -/
+/-- Composition of morphisms in the indexing diagram for wide (co)equalizers. -/
 def walking_parallel_chunk_hom.comp :
   Π (X Y Z : walking_parallel_chunk J)
     (f : walking_parallel_chunk_hom J X Y) (g : walking_parallel_chunk_hom J Y Z),
@@ -40,7 +43,6 @@ def walking_parallel_chunk_hom.comp :
   | _ _ _ (id _)   h := h
   | _ _ _ (line j) (id one) := line j.
 
-section
 local attribute [tidy] tactic.case_bash
 
 instance walking_parallel_pair_hom_category  :
@@ -54,8 +56,10 @@ lemma walking_parallel_chunk_hom_id (X : walking_parallel_chunk J) :
   walking_parallel_chunk_hom.id X = 𝟙 X :=
 rfl
 
-/-- `parallel_pair f g` is the diagram in `C` consisting of the two morphisms `f` and `g` with
-    common domain and codomain. -/
+/--
+`parallel_chunk f` is the diagram in `C` consisting of the family of morphisms, each with
+common domain and codomain.
+-/
 def parallel_chunk {X Y : C} (f : J → (X ⟶ Y)) : walking_parallel_chunk J ⥤ C :=
 { obj := λ x, walking_parallel_chunk.cases_on x X Y,
   map := λ x y h, match x, y, h with
@@ -69,6 +73,7 @@ def parallel_chunk {X Y : C} (f : J → (X ⟶ Y)) : walking_parallel_chunk J �
   end }
 
 end
+
 lemma gaft_aux (C : Type u) [category.{v} C] [has_limits.{v} C] {ι : Type v} (B : ι → C)
   (weakly_initial : ∀ (A : C), ∃ i, nonempty (B i ⟶ A)) : has_initial C :=
 begin
@@ -79,15 +84,15 @@ begin
   let endos := ∏ B ⟶ ∏ B,
   let F : walking_parallel_chunk endos ⥤ C := parallel_chunk (id : endos → endos),
   let I := limit F,
-  let i : I ⟶ ∏ B := limit.π F zero,
+  let i : I ⟶ ∏ B := limit.π F walking_parallel_chunk.zero,
   have : mono i,
     refine ⟨λ T f g eq, _⟩,
     apply limit.hom_ext,
     rintro (_ | _),
     apply eq,
-    rw ← limit.w _ (_ : zero ⟶ one),
+    rw ← limit.w _ (_ : walking_parallel_chunk.zero ⟶ walking_parallel_chunk.one),
     rw reassoc_of eq,
-    apply line (𝟙 _),
+    apply walking_parallel_chunk_hom.line (𝟙 _),
   have : ∀ (X : C), inhabited (I ⟶ X),
     intro X,
     refine ⟨i ≫ fromP X⟩,
@@ -101,24 +106,34 @@ begin
     have : ((i ≫ h) ≫ e) ≫ i = i ≫ 𝟙 _,
       rw category.assoc,
       rw category.assoc,
-      erw limit.w F (line (h ≫ e ≫ i)),
-      erw limit.w F (line (𝟙 _)),
+      erw limit.w F (walking_parallel_chunk_hom.line (h ≫ e ≫ i)),
+      erw limit.w F (walking_parallel_chunk_hom.line (𝟙 _)),
     rw [category.comp_id, cancel_mono_id i] at this,
     haveI : split_epi e := ⟨i ≫ h, this⟩,
     rw ← cancel_epi e,
     apply equalizer.condition,
-  resetI,
-  apply has_initial_of_unique I,
+  exactI has_initial_of_unique I,
 end
 
-def ssc {D : Type u} [category.{v} D] (G : D ⥤ C) : Prop :=
- ∀ (A : C), ∃ (ι : Type v) (B : ι → D) (f : Π (i : ι), A ⟶ G.obj (B i)),
- ∀ X (h : A ⟶ G.obj X), ∃ (i : ι) (g : B i ⟶ X), f i ≫ G.map g = h
+/--
+The functor `G : D ⥤ C` satisfies the *solution set condition* if for every `A : C`, there is a
+family of morphisms `{f_i : A ⟶ G (B_i) // i ∈ ι}` such that given any morphism `h : A ⟶ G X`,
+there is some `i ∈ ι` such that `h` factors through `f_i`.
+
+The key part of this definition is that the indexing set `ι` lives in `Type v`, where `v` is the
+universe of morphisms of the category: this is the "smallness" condition which allows the general
+adjoint functor theorem to go through.
+-/
+def solution_set_condition {D : Type u} [category.{v} D] (G : D ⥤ C) : Prop :=
+  ∀ (A : C), ∃ (ι : Type v) (B : ι → D) (f : Π (i : ι), A ⟶ G.obj (B i)),
+  ∀ X (h : A ⟶ G.obj X), ∃ (i : ι) (g : B i ⟶ X), f i ≫ G.map g = h
 
 variables {D : Type u} [category.{v} D]
 
+-- TODO: Move this to category_theory/comma.lean
 instance (G : D ⥤ C) (A : C) : faithful (comma.snd (functor.from_punit A) G) := {}.
 
+-- TODO: Move this to category_theory/comma.lean
 instance comma_reflects_isos (G : D ⥤ C) (A : C) :
   reflects_isomorphisms (comma.snd (functor.from_punit A) G) :=
 { reflects := λ X Y f i, by exactI
@@ -146,6 +161,7 @@ def new_cone : cone ((F ⋙ comma.snd _ _) ⋙ G) :=
   { app := λ j, (F.obj j).hom,
     naturality' := λ j₁ j₂ α, (F.map α).w } }
 
+-- TODO: dualise and move to category_theory/limits/comma.lean
 def four_ten_aux : creates_limit F (comma.snd (functor.from_punit A) G) :=
 creates_limit_of_reflects_iso $ λ c t,
 { lifted_cone :=
@@ -226,6 +242,12 @@ has_limits_of_shape_of_has_limits_of_shape_creates_limits_of_shape
 
 end create
 
+-- TODO: move this section somewhere.
+-- TODO: consider showing the converse
+-- TODO: dualise
+-- This section proves that if each comma category (A ↓ G) has an initial object then `G` has a
+-- left adjoint
+
 section initials
 noncomputable theory
 
@@ -235,7 +257,7 @@ variables [∀ A, has_initial (comma (functor.from_punit A) G)]
 def F : C → D := λ A, (⊥_ (comma (functor.from_punit A) G)).right
 def η (A : C) : A ⟶ G.obj (F G A) := (⊥_ (comma (functor.from_punit A) G)).hom
 
-noncomputable def init_equivalence (A : C) (B : D) :
+def init_equivalence (A : C) (B : D) :
   (F G A ⟶ B) ≃ (A ⟶ G.obj B) :=
 { to_fun := λ g, η G A ≫ G.map g,
   inv_fun := λ f,
@@ -279,7 +301,14 @@ section gaft
 
 variables (G : D ⥤ C) [has_limits D] [preserves_limits G]
 
-noncomputable def gaft (hG : ssc G) : is_right_adjoint G :=
+/--
+The general adjoint functor theorem says that if `G : D ⥤ C` preserves limits and `D` has them,
+then `G` is a right adjoint.
+
+Strictly speaking, it also gives the converse: if `G : D ⥤ C` is a right adjoint then `G` preserves
+them and it satisfies the solution set condition; though this version is not shown here.
+-/
+noncomputable def gaft (hG : solution_set_condition G) : is_right_adjoint G :=
 begin
   apply is_right_adjoint_of_initials _,
   intro A,
