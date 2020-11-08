@@ -5,6 +5,8 @@ Authors: Johannes Hölzl, Yury Kudryashov
 -/
 import measure_theory.measure_space
 import analysis.normed_space.finite_dimension
+import measure_theory.arithmetic
+
 /-!
 # Borel (measurable) space
 
@@ -349,6 +351,14 @@ lemma continuous.measurable2 [second_countable_topology α] [second_countable_to
   (h : continuous (λ p : α × β, c p.1 p.2)) (hf : measurable f) (hg : measurable g) :
   measurable (λ a, c (f a) (g a)) :=
 h.measurable.comp (hf.prod_mk hg)
+
+@[priority 100]
+instance topological_semimodule.has_measurable_smul {R M} [semiring R] [topological_space R]
+  [second_countable_topology R] [measurable_space R] [opens_measurable_space R]
+  [add_comm_monoid M] [topological_space M] [second_countable_topology M] [measurable_space M]
+  [borel_space M] [semimodule R M] [topological_semimodule R M] :
+  has_measurable_smul R M :=
+⟨continuous_smul.measurable⟩
 
 section borel_space
 variables [topological_space α] [measurable_space α] [borel_space α]

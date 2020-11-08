@@ -136,7 +136,73 @@ measurable (λ x, f x / c) :=
 
 end div
 
-class is_measurable_action (M α : Type*) [has_scalar M α] [measurable_space α] 
+class has_measurable_const_smul (M α : Type*) [has_scalar M α] [measurable_space α] : Prop :=
+(measurable_const_smul : ∀ (c : M), measurable ((•) c : α → α))
+
+class has_measurable_smul (M α : Type*) [has_scalar M α] [measurable_space M]
+  [measurable_space α] : Prop :=
+(measurable_smul : measurable (function.uncurry (•) : M × α → α))
+
+section smul
+
+variables {M β : Type*} [measurable_space β] [has_scalar M β]
+
+lemma measurable.smul [measurable_space M] [has_measurable_smul M β]
+  {f : α → M} {g : α → β} (hf : measurable f) (hg : measurable g) :
+  measurable (λ x, f x • g x) :=
+has_measurable_smul.measurable_smul.comp (hf.prod_mk hg)
+
+lemma measurable.const_smul [has_measurable_const_smul M β] {f : α → β}
+  (hf : measurable f) (c : M) :
+  measurable (λ x, c • f x) :=
+(has_measurable_const_smul.measurable_const_smul c).comp hf
+
+@[priority 100]
+instance has_measurable_smul.to_has_measurable_const_smul
+  [measurable_space M] [has_measurable_smul M β] :
+  has_measurable_const_smul M β :=
+⟨λ c, measurable_const.smul measurable_id⟩
+
+@[simp] lemma units.measurable_const_smul_iff {M β : Type*} [measurable_space β] [monoid M]
+  [mul_action M β] [has_measurable_const_smul M β] (u : units M) {f : α → β} :
+  measurable (λ x, (u : M) • f x) ↔ measurable f :=
+⟨λ h, by simpa only [u.inv_smul_smul] using h.const_smul ((u⁻¹ : units M) : M),
+  λ h, h.const_smul ↑u⟩
+
+lemma is_unit.measurable_const_smul_iff {M β : Type*} [measurable_space β] [monoid M]
+  [mul_action M β] [has_measurable_const_smul M β] {c : M} (hc : is_unit c) {f : α → β} :
+  measurable (λ x, c • f x) ↔ measurable f :=
+let ⟨u, hu⟩ := hc in hu ▸ u.measurable_const_smul_iff
+
+lemma measurable_const_smul_iff {R β : Type*} [measurable_space β] [division_ring R]
+  [mul_action R β] [has_measurable_const_smul R β] {c : R} (hc : c ≠ 0) {f : α → β} :
+  measurable (λ x, c • f x) ↔ measurable f :=
+(is_unit.mk0 c hc).measurable_const_smul_iff
+
+end smul
+
+class has_measurable_inv (G : Type*) [has_inv G] [measurable_space G] : Prop :=
+(measurable_inv : measurable (has_inv.inv : G → G))
+
+export has_measurable_inv (measurable_inv)
+
+section inv
+
+variables {G : Type*} [has_inv G] [measurable_space G] [has_measurable_inv G]
+
+lemma measurable.inv {f : α → G} (hf : measurable f) : measurable (λ x, (f x)⁻¹) :=
+measurable_inv.comp hf
+
+@[simp] lemma measurable_inv_iff {G : Type*} [group G] [measurable_space G] [has_measurable_inv G]
+  {f : α → G} : measurable (λ x, (f x)⁻¹) ↔ measurable f :=
+⟨λ h, by simpa only [inv_inv] using h.inv, λ h, h.inv⟩
+
+@[simp] lemma measurable_inv_iff' {G₀ : Type*} [group_with_zero G₀] [measurable_space G₀]
+  [has_measurable_inv G₀] {f : α → G₀} :
+  measurable (λ x, (f x)⁻¹) ↔ measurable f :=
+⟨λ h, by simpa only [inv_inv'] using h.inv, λ h, h.inv⟩
+
+end inv
 
 /-!
 ### Big operators: `∏` and `∑`
@@ -182,4 +248,3 @@ lemma finset.measurable_prod {ι M : Type*} [comm_monoid M] [measurable_space M]
   [has_measurable_mul₂ M] {f : ι → α → M} (s : finset ι) (hf : ∀i ∈ s, measurable (f i)) :
   measurable (λ a, ∏ i in s, f i a) :=
 by simpa only [← finset.prod_apply] using s.measurable_prod' hf
-
