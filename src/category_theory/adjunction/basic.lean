@@ -89,7 +89,7 @@ by rw [hom_equiv_unit, G.map_comp, ← assoc, ←hom_equiv_unit]
   (adj.hom_equiv X Y').symm (f ≫ G.map g) = (adj.hom_equiv X Y).symm f ≫ g :=
 by rw [equiv.symm_apply_eq]; simp [-hom_equiv_counit]
 
-@[simp] lemma left_triangle :
+@[simp, reassoc] lemma left_triangle :
   (whisker_right adj.unit F) ≫ (whisker_left F adj.counit) = nat_trans.id _ :=
 begin
   ext, dsimp,
@@ -97,7 +97,7 @@ begin
   simp
 end
 
-@[simp] lemma right_triangle :
+@[simp, reassoc] lemma right_triangle :
   (whisker_left G adj.unit) ≫ (whisker_right adj.counit G) = nat_trans.id _ :=
 begin
   ext, dsimp,

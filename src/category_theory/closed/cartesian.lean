@@ -218,31 +218,47 @@ section pre
 
 variables {B}
 
-/-- Pre-compose an internal hom with an external hom. -/
-def pre (X : C) (f : B ⟶ A) [exponentiable B] : (A⟹X) ⟶ B⟹X :=
-curry (limits.prod.map f (𝟙 _) ≫ (ev A).app X)
+def pre [exponentiable B] (f : B ⟶ A) : exp A ⟶ exp B :=
+calc exp A ⟶ exp A ⋙ 𝟭 C : (functor.right_unitor _).inv
+     ...   ⟶ exp A ⋙ prod.functor.obj B ⋙ exp B : whisker_left _ (coev B)
+     ...   ⟶ _ : whisker_left _ (whisker_right (prod.functor.map f) _)
+     ...   ⟶ 𝟭 C ⋙ exp B : whisker_right (ev A) _
+     ...   ⟶ exp B : (functor.left_unitor _).hom
 
-lemma pre_id (A X : C) [exponentiable A] : pre X (𝟙 A) = 𝟙 (A⟹X) :=
-by { rw [pre, prod.map_id_id, id_comp, ← uncurry_id_eq_ev], simp }
+lemma pre_id (A X : C) [exponentiable A] : pre (𝟙 A) = 𝟙 _ :=
+begin
+  rw [pre, prod.functor.map_id, whisker_right_id', whisker_left_id', comp_id, assoc, assoc],
+  rw adjunction.right_triangle,
+end
 
--- There's probably a better proof of this somehow
+-- by { rw [pre.def, prod.map_id_id, id_comp, ← uncurry_id_eq_ev], simp }
+
+lemma pre_post_comm {A B : C} {X Y : C} [exponentiable X] [exponentiable Y] (f : A ⟶ B) (g : Y ⟶ X) :
+  pre A g ≫ (exp Y).map f = (exp X).map f ≫ pre B g :=
+begin
+  rw [pre, assoc, ← (exp Y).map_comp, assoc, ← ev_naturality, ←prod.map_swap_assoc,
+      (exp Y).map_comp, ← coev_naturality_assoc],
+  refl
+end
+
+lemma curry_pre {A A' : C} [exponentiable A] [exponentiable A'] (B X : C) (f : A' ⟶ A) (k : A ⨯ B ⟶ X) :
+  curry k ≫ pre X f = curry (limits.prod.map f (𝟙 B) ≫ k) :=
+begin
+
+  -- rw [curry_eq, assoc, ← pre_post_comm, curry_eq, functor.map_comp],
+  -- rw [pre.def, eq_curry_iff, uncurry_natural_left, uncurry_curry, prod.map_swap_assoc, curry_eq,
+  --     prod.map_id_comp, assoc, ev_naturality],
+  -- dsimp,
+  -- rw ev_coev_assoc,
+end
+
 /-- Precomposition is contrafunctorial. -/
 lemma pre_map [exponentiable B] {D : C} [exponentiable D] (f : A ⟶ B) (g : B ⟶ D) :
   pre X (f ≫ g) = pre X g ≫ pre X f :=
-begin
-  rw [pre, curry_eq_iff, pre, uncurry_natural_left, pre, uncurry_curry, prod.map_swap_assoc,
-      prod.map_comp_id, assoc, ← uncurry_id_eq_ev, ← uncurry_id_eq_ev, ← uncurry_natural_left,
-      curry_natural_right, comp_id, uncurry_natural_right, uncurry_curry],
-end
+by rw [pre.def X g, curry_pre, ← prod.map_comp_id_assoc, pre.def]
 
 end pre
 
-lemma pre_post_comm [cartesian_closed C] {A B : C} {X Y : Cᵒᵖ} (f : A ⟶ B) (g : X ⟶ Y) :
-  pre A g.unop ≫ (exp Y.unop).map f = (exp X.unop).map f ≫ pre B g.unop :=
-begin
-  rw [pre, pre, ← curry_natural_left, eq_curry_iff, uncurry_natural_right, uncurry_curry,
-      prod.map_swap_assoc, ev_naturality, assoc],
-end
 
 /-- The internal hom functor given by the cartesian closed structure. -/
 def internal_hom [cartesian_closed C] : C ⥤ Cᵒᵖ ⥤ C :=
