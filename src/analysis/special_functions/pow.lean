@@ -6,6 +6,7 @@ Authors: Chris Hughes, Abhimanyu Pallavi Sudhir, Jean Lo, Calle Sönne, Sébasti
 -/
 import analysis.special_functions.trigonometric
 import analysis.calculus.extend_deriv
+import analysis.calculus.times_cont_diff
 
 /-!
 # Power function on `ℂ`, `ℝ`, `ℝ≥0`, and `ennreal`
@@ -21,7 +22,8 @@ We also prove basic properties of these functions.
 
 noncomputable theory
 
-open_locale classical real topological_space nnreal
+open_locale classical real topological_space nnreal filter
+open filter
 
 namespace complex
 
@@ -202,6 +204,14 @@ begin
   { rw [abs_of_neg hx, rpow_def_of_neg hx, rpow_def_of_pos (neg_pos.2 hx), log_neg_eq_log,
       abs_mul, abs_of_pos (exp_pos _)],
     exact mul_le_of_le_one_right (exp_pos _).le (abs_cos_le_one _) }
+end
+
+lemma abs_rpow_le_exp_log_mul (x y : ℝ) : abs (x ^ y) ≤ exp (log x * y) :=
+begin
+  refine (abs_rpow_le_abs_rpow x y).trans _,
+  by_cases hx : x = 0,
+  { by_cases hy : y = 0; simp [hx, hy, zero_le_one] },
+  { rw [rpow_def_of_pos (abs_pos.2 hx), log_abs] }
 end
 
 end real
@@ -425,78 +435,57 @@ by rw [← rpow_nat_cast, ← rpow_mul hx, inv_mul_cancel hn0, rpow_one]
 
 section prove_rpow_is_continuous
 
-lemma continuous_rpow_aux1 : continuous (λp : {p:ℝ×ℝ // 0 < p.1}, p.val.1 ^ p.val.2) :=
-suffices h : continuous (λ p : {p:ℝ×ℝ // 0 < p.1 }, exp (log p.val.1 * p.val.2)),
-  by { convert h, ext p, rw rpow_def_of_pos p.2 },
-continuous_exp.comp $
-  (show continuous ((λp:{p:ℝ//0 < p}, log (p.val)) ∘ (λp:{p:ℝ×ℝ//0<p.fst}, ⟨p.val.1, p.2⟩)), from
-    continuous_log'.comp $ continuous_subtype_mk _ $ continuous_fst.comp continuous_subtype_val).mul
-  (continuous_snd.comp $ continuous_subtype_val.comp continuous_id)
+lemma times_cont_diff_at_rpow {p : ℝ × ℝ} {n} (hp : p.1 ≠ 0) :
+  times_cont_diff_at ℝ n (λ p : ℝ × ℝ, p.1 ^ p.2) p :=
+begin
+  cases hp.lt_or_lt with hp' hp',
+  { -- For `x < 0`, `x ^ y = exp (log x * y) * cos (y * π)`
+    have := (((times_cont_diff_at_log hp).comp p times_cont_diff_at_fst).mul
+      times_cont_diff_at_snd).exp.mul (times_cont_diff_at_snd.mul times_cont_diff_at_const).cos,
+    refine this.congr_of_eventually_eq _, exact π,
+    filter_upwards [continuous_at_fst (Iio_mem_nhds hp')],
+    exact λ p hp, rpow_def_of_neg hp p.2 },
+  { have := (((times_cont_diff_at_log hp).comp p times_cont_diff_at_fst).mul
+       times_cont_diff_at_snd).exp,
+    refine this.congr_of_eventually_eq _,
+    filter_upwards [continuous_at_fst (Ioi_mem_nhds hp')],
+    exact λ p hp, rpow_def_of_pos hp p.2 }
+end
 
-lemma continuous_rpow_aux2 : continuous (λ p : {p:ℝ×ℝ // p.1 < 0}, p.val.1 ^ p.val.2) :=
-suffices h : continuous (λp:{p:ℝ×ℝ // p.1 < 0}, exp (log (-p.val.1) * p.val.2) * cos (p.val.2 * π)),
-  by { convert h, ext p, rw [rpow_def_of_neg p.2, log_neg_eq_log] },
-  (continuous_exp.comp $
-    (show continuous $ (λp:{p:ℝ//0<p},
-            log (p.val))∘(λp:{p:ℝ×ℝ//p.1<0}, ⟨-p.val.1, neg_pos_of_neg p.2⟩),
-     from continuous_log'.comp $ continuous_subtype_mk _ $ continuous_neg.comp $
-            continuous_fst.comp continuous_subtype_val).mul
-    (continuous_snd.comp $ continuous_subtype_val.comp continuous_id)).mul
-  (continuous_cos.comp $
-    (continuous_snd.comp $ continuous_subtype_val.comp continuous_id).mul continuous_const)
+lemma times_cont_diff_at_rpow' {n} (hx : x ≠ 0) (y : ℝ) :
+  times_cont_diff_at ℝ n (λ p : ℝ × ℝ, p.1 ^ p.2) (x, y) :=
+times_cont_diff_at_rpow hx
 
 lemma continuous_at_rpow_of_ne_zero (hx : x ≠ 0) (y : ℝ) :
   continuous_at (λp:ℝ×ℝ, p.1^p.2) (x, y) :=
-begin
-  cases lt_trichotomy 0 x,
-  exact continuous_within_at.continuous_at
-    (continuous_on_iff_continuous_restrict.2 continuous_rpow_aux1 _ h)
-    (mem_nhds_sets (by { convert (is_open_lt' (0:ℝ)).prod is_open_univ, ext, finish }) h),
-  cases h,
-  { exact absurd h.symm hx },
-  exact continuous_within_at.continuous_at
-    (continuous_on_iff_continuous_restrict.2 continuous_rpow_aux2 _ h)
-    (mem_nhds_sets (by { convert (is_open_gt' (0:ℝ)).prod is_open_univ, ext, finish }) h)
-end
-
-lemma continuous_rpow_aux3 : continuous (λ p : {p:ℝ×ℝ // 0 < p.2}, p.val.1 ^ p.val.2) :=
-continuous_iff_continuous_at.2 $ λ ⟨(x₀, y₀), hy₀⟩,
-begin
-  by_cases hx₀ : x₀ = 0,
-  { simp only [continuous_at, hx₀, zero_rpow (ne_of_gt hy₀), metric.tendsto_nhds_nhds],
-    assume ε ε0,
-    rcases exists_pos_rat_lt (half_pos hy₀) with ⟨q, q_pos, q_lt⟩,
-    let q := (q:ℝ), replace q_pos : 0 < q := rat.cast_pos.2 q_pos,
-    let δ := min (min q (ε ^ (1 / q))) (1/2),
-    have δ0 : 0 < δ := lt_min (lt_min q_pos (rpow_pos_of_pos ε0 _)) (by norm_num),
-    have : δ ≤ q := le_trans (min_le_left _ _) (min_le_left _ _),
-    have : δ ≤ ε ^ (1 / q) := le_trans (min_le_left _ _) (min_le_right _ _),
-    have : δ < 1 := lt_of_le_of_lt (min_le_right _ _) (by norm_num),
-    use δ, use δ0, rintros ⟨⟨x, y⟩, hy⟩,
-    simp only [subtype.dist_eq, real.dist_eq, prod.dist_eq, sub_zero, subtype.coe_mk],
-    assume h, rw max_lt_iff at h, cases h with xδ yy₀,
-    have qy : q < y, calc q < y₀ / 2 : q_lt
-      ... = y₀ - y₀ / 2 : (sub_half _).symm
-      ... ≤ y₀ - δ : by linarith
-      ... < y : sub_lt_of_abs_sub_lt_left yy₀,
-    calc abs(x^y) ≤ abs(x)^y : abs_rpow_le_abs_rpow _ _
-      ... < δ ^ y : rpow_lt_rpow (abs_nonneg _) xδ hy
-      ... < δ ^ q : by { refine rpow_lt_rpow_of_exponent_gt _ _ _, repeat {linarith} }
-      ... ≤ (ε ^ (1 / q)) ^ q : by { refine rpow_le_rpow _ _ _, repeat {linarith} }
-      ... = ε : by { rw [← rpow_mul, div_mul_cancel, rpow_one], exact ne_of_gt q_pos, linarith }},
-  { exact (continuous_within_at_iff_continuous_at_restrict (λp:ℝ×ℝ, p.1^p.2) _).1
-      (continuous_at_rpow_of_ne_zero hx₀ _).continuous_within_at }
-end
+(show times_cont_diff_at ℝ 0 (λ p : ℝ × ℝ, p.1 ^ p.2) (x, y),
+  from times_cont_diff_at_rpow hx).continuous_at
 
 lemma continuous_at_rpow_of_pos (hy : 0 < y) (x : ℝ) :
   continuous_at (λp:ℝ×ℝ, p.1^p.2) (x, y) :=
-continuous_within_at.continuous_at
-  (continuous_on_iff_continuous_restrict.2 continuous_rpow_aux3 _ hy)
-  (mem_nhds_sets (by { convert is_open_univ.prod (is_open_lt' (0:ℝ)), ext, finish }) hy)
+begin
+  by_cases hx : x = 0, swap, { exact continuous_at_rpow_of_ne_zero hx y },
+  subst x,
+  have A : tendsto (λ p : ℝ × ℝ, exp (log p.1 * p.2)) (𝓝[{0}ᶜ] 0 ×ᶠ 𝓝 y) (𝓝 0) :=
+    tendsto_exp_at_bot.comp
+      ((tendsto_log_nhds_within_zero.comp tendsto_fst).at_bot_mul hy tendsto_snd),
+  have B : tendsto (λ p : ℝ × ℝ, p.1 ^ p.2) (𝓝[{0}ᶜ] 0 ×ᶠ 𝓝 y) (𝓝 0) :=
+    squeeze_zero_norm (λ p, abs_rpow_le_exp_log_mul p.1 p.2) A,
+  have C : tendsto (λ p : ℝ × ℝ, p.1 ^ p.2) (𝓝[{0}] 0 ×ᶠ 𝓝 y) (pure 0),
+  { rw [nhds_within_singleton, ← principal_singleton],
+    refine tendsto.mono_left _ (prod_mono le_rfl (le_principal_iff.2 $ Ioi_mem_nhds hy)),
+    rw [prod_principal_principal, tendsto_principal_principal],
+    rintro p ⟨hx, hy⟩,
+    simp only [set.mem_singleton_iff.1 hx, zero_rpow (set.mem_Ioi.1 hy).ne', set.mem_singleton] },
+  have := B.sup (C.mono_right (pure_le_nhds _)),
+  rw [← nhds_within_univ, ← nhds_within_prod_eq, ← nhds_within_prod_eq, ← nhds_within_union,
+    ← set.union_prod, set.compl_union_self, set.univ_prod_univ, nhds_within_univ] at this,
+  simpa [continuous_at, hy.ne']
+end
 
 lemma continuous_at_rpow {x y : ℝ} (h : x ≠ 0 ∨ 0 < y) :
   continuous_at (λp:ℝ×ℝ, p.1^p.2) (x, y) :=
-by { cases h, exact continuous_at_rpow_of_ne_zero h _, exact continuous_at_rpow_of_pos h x }
+h.elim (λ h, continuous_at_rpow_of_ne_zero h y) (λ h, continuous_at_rpow_of_pos h x)
 
 variables {α : Type*} [topological_space α] {f g : α → ℝ}
 
@@ -536,7 +525,7 @@ begin
     ring },
   apply this.congr_of_eventually_eq,
   have : set.Ioi (0 : ℝ) ∈ 𝓝 x := mem_nhds_sets is_open_Ioi h,
-  exact filter.eventually_of_mem this (λ y hy, rpow_def_of_pos hy _)
+  exact eventually_of_mem this (λ y hy, rpow_def_of_pos hy _)
 end
 
 lemma has_deriv_at_rpow_of_neg {x : ℝ} (h : x < 0) (p : ℝ) :
@@ -548,8 +537,8 @@ begin
     field_simp [rpow_def_of_neg h, mul_sub, exp_sub, sub_mul, cos_sub, exp_log_of_neg h, ne_of_lt h],
     ring },
   apply this.congr_of_eventually_eq,
-  have : set.Iio (0 : ℝ) ∈ 𝓝 x := mem_nhds_sets is_open_Iio h,
-  exact filter.eventually_of_mem this (λ y hy, rpow_def_of_neg hy _)
+  have : set.Iio (0 : ℝ) ∈ 𝓝 x := Iio_mem_nhds h,
+  exact eventually_of_mem this (λ y hy, rpow_def_of_neg hy _)
 end
 
 lemma has_deriv_at_rpow {x : ℝ} (h : x ≠ 0) (p : ℝ) :
@@ -597,6 +586,20 @@ end
 
 lemma continuous_sqrt : continuous sqrt :=
 by rw sqrt_eq_rpow; exact continuous_rpow_of_pos (λa, by norm_num) continuous_id continuous_const
+
+lemma has_strict_deriv_at_sqrt (hx : x ≠ 0) : has_strict_deriv_at sqrt (1 / (2 * sqrt x)) x :=
+begin
+  cases hx.lt_or_lt with hx hx,
+  { rw [sqrt_eq_zero_of_nonpos hx.le, mul_zero, div_zero],
+    have : sqrt =ᶠ[𝓝 x] 0 := (gt_mem_nhds hx).mono (λ x hx, sqrt_eq_zero_of_nonpos hx.le),
+    exact (has_strict_deriv_at_const x (0 : ℝ)).congr_of_eventually_eq this.symm },
+  { convert has_strict_deriv_at.of_local_left_inverse continuous_sqrt.continuous_at
+     (has_strict_deriv_at_pow 2 _) _ ((lt_mem_nhds hx).mono (λ x hx, sqr_sqrt hx.le));
+       simp [(sqrt_pos.2 hx).ne', @two_ne_zero ℝ] }
+end
+
+lemma has_deriv_at_sqrt (hx : x ≠ 0) : has_deriv_at sqrt (1 / (2 * sqrt x)) x :=
+(has_strict_deriv_at_sqrt hx).has_deriv_at
 
 end sqrt
 
@@ -749,38 +752,17 @@ lemma deriv_within_rpow_of_one_le (hf : differentiable_within_at ℝ f s x) (hp 
   deriv (λx, (f x)^p) x = (deriv f x) * p * (f x)^(p-1) :=
 (hf.has_deriv_at.rpow_of_one_le hp).deriv
 
+lemma times_cont_diff_at.rpow {n : with_top ℕ} {g : ℝ → ℝ} (hf : times_cont_diff_at ℝ n f x)
+  (hg : times_cont_diff_at ℝ n g x) (h₀ : f x ≠ 0) :
+  times_cont_diff_at ℝ n (λ x : ℝ, f x ^ g x) x :=
+(times_cont_diff_at_rpow' h₀ (g x)).comp x (hf.prod hg)
+
 /- Differentiability statements for the square root of a function, when the function does not
 vanish -/
 
 lemma has_deriv_within_at.sqrt (hf : has_deriv_within_at f f' s x) (hx : f x ≠ 0) :
   has_deriv_within_at (λ y, sqrt (f y)) (f' / (2 * sqrt (f x))) s x :=
-begin
-  simp only [sqrt_eq_rpow],
-  convert hf.rpow (1/2) hx,
-  rcases lt_trichotomy (f x) 0 with H|H|H,
-  { have A : (f x)^((1:ℝ)/2) = 0,
-    { rw rpow_def_of_neg H,
-      have : cos (1/2 * π) = 0, by { convert cos_pi_div_two using 2, ring },
-      rw [this],
-      simp },
-    have B : f x ^ ((1:ℝ) / 2 - 1) = 0,
-    { rw rpow_def_of_neg H,
-      have : cos (π/2 - π) = 0, by simp [cos_sub],
-      have : cos (((1:ℝ)/2 - 1) * π) = 0, by { convert this using 2, ring },
-      rw this,
-      simp },
-    rw [A, B],
-    simp },
-  { exact (hx H).elim },
-  { have A : 0 < (f x)^((1:ℝ)/2) := rpow_pos_of_pos H _,
-    have B : (f x) ^ (-(1:ℝ)) = (f x)^(-((1:ℝ)/2)) * (f x)^(-((1:ℝ)/2)),
-    { rw [← rpow_add H],
-      congr,
-      norm_num },
-    rw [sub_eq_add_neg, rpow_add H, B, rpow_neg (le_of_lt H)],
-    field_simp [hx, ne_of_gt A],
-    ring }
-end
+by simpa [(∘), div_eq_inv_mul] using (has_deriv_at_sqrt hx).comp_has_deriv_within_at x hf
 
 lemma has_deriv_at.sqrt (hf : has_deriv_at f f' x) (hx : f x ≠ 0) :
   has_deriv_at (λ y, sqrt (f y)) (f' / (2 * sqrt(f x))) x :=
@@ -788,6 +770,29 @@ begin
   rw ← has_deriv_within_at_univ at *,
   exact hf.sqrt hx
 end
+
+lemma real.times_cont_diff_at_sqrt {n} (hx : x ≠ 0) : times_cont_diff_at ℝ n sqrt x :=
+begin
+  rw [sqrt_eq_rpow],
+  exact times_cont_diff_at_id.rpow times_cont_diff_at_const hx
+end
+
+lemma times_cont_diff_at.sqrt {n} (hf : times_cont_diff_at ℝ n f x) (hx : f x ≠ 0) :
+  times_cont_diff_at ℝ n (λ x, sqrt (f x)) x :=
+(real.times_cont_diff_at_sqrt hx).comp x hf
+
+lemma times_cont_diff_within_at.sqrt {n} (hf : times_cont_diff_within_at ℝ n f s x) (hx : f x ≠ 0) :
+  times_cont_diff_within_at ℝ n (λ x, sqrt (f x)) s x :=
+(real.times_cont_diff_at_sqrt hx).comp_times_cont_diff_within_at x hf
+
+lemma times_cont_diff.sqrt {n} (hf : times_cont_diff ℝ n f) (h₀ : ∀ x, f x ≠ 0) :
+  times_cont_diff ℝ n (λ x, sqrt (f x)) :=
+times_cont_diff_iff_times_cont_diff_at.2 $
+  λ x, hf.times_cont_diff_at.sqrt (h₀ x)
+
+lemma times_cont_diff_on.sqrt {n} (hf : times_cont_diff_on ℝ n f s) (h₀ : ∀ x ∈ s, f x ≠ 0) :
+  times_cont_diff_on ℝ n (λ x, sqrt (f x)) s :=
+λ x hx, (hf x hx).sqrt (h₀ x hx)
 
 lemma differentiable_within_at.sqrt (hf : differentiable_within_at ℝ f s x) (hx : f x ≠ 0) :
   differentiable_within_at ℝ (λx, sqrt (f x)) s x :=

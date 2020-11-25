@@ -1499,8 +1499,8 @@ variables {l : filter β} {f : β → α}
 /-- If a function tends to infinity along a filter, then this function multiplied by a positive
 constant (on the left) also tends to infinity. The archimedean assumption is convenient to get a
 statement that works on `ℕ`, `ℤ` and `ℝ`, although not necessary (a version in ordered fields is
-given in `tendsto_at_top_mul_left'`). -/
-lemma tendsto_at_top_mul_left  {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
+given in `filter.tendsto.const_mul_at_top'`). -/
+lemma filter.tendsto.const_mul_at_top  {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
   tendsto (λx, r * f x) l at_top :=
 begin
   apply tendsto_at_top.2 (λb, _),
@@ -1517,8 +1517,8 @@ end
 /-- If a function tends to infinity along a filter, then this function multiplied by a positive
 constant (on the right) also tends to infinity. The archimedean assumption is convenient to get a
 statement that works on `ℕ`, `ℤ` and `ℝ`, although not necessary (a version in ordered fields is
-given in `tendsto_at_top_mul_right'`). -/
-lemma tendsto_at_top_mul_right {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
+given in `filter.tendsto.at_top_mul_const'`). -/
+lemma filter.tendsto.at_top_mul_const {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
   tendsto (λx, f x * r) l at_top :=
 begin
   apply tendsto_at_top.2 (λb, _),
@@ -1540,8 +1540,8 @@ variables {l : filter β} {f g : β → α}
 
 /-- If a function tends to infinity along a filter, then this function multiplied by a positive
 constant (on the left) also tends to infinity. For a version working in `ℕ` or `ℤ`, use
-`tendsto_at_top_mul_left` instead. -/
-lemma tendsto_at_top_mul_left' {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
+`filter.tendsto.const_mul_at_top` instead. -/
+lemma filter.tendsto.const_mul_at_top' {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
   tendsto (λx, r * f x) l at_top :=
 begin
   apply tendsto_at_top.2 (λb, _),
@@ -1552,43 +1552,61 @@ end
 
 /-- If a function tends to infinity along a filter, then this function multiplied by a positive
 constant (on the right) also tends to infinity. For a version working in `ℕ` or `ℤ`, use
-`tendsto_at_top_mul_right` instead. -/
-lemma tendsto_at_top_mul_right' {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
+`filter.tendsto.at_top_mul_const` instead. -/
+lemma filter.tendsto.at_top_mul_const' {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
   tendsto (λx, f x * r) l at_top :=
-by simpa [mul_comm] using tendsto_at_top_mul_left' hr hf
+by simpa [mul_comm] using hf.const_mul_at_top' hr
 
 /-- If a function tends to infinity along a filter, then this function divided by a positive
 constant also tends to infinity. -/
-lemma tendsto_at_top_div {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
+lemma filter.tendsto.at_top_div_const {r : α} (hr : 0 < r) (hf : tendsto f l at_top) :
   tendsto (λx, f x / r) l at_top :=
-tendsto_at_top_mul_right' (inv_pos.2 hr) hf
+hf.at_top_mul_const' (inv_pos.2 hr)
 
 variables [topological_space α] [order_topology α]
 
 /-- In a linearly ordered field with the order topology, if `f` tends to `at_top` and `g` tends to
 a positive constant `C` then `f * g` tends to `at_top`. -/
-lemma tendsto_mul_at_top {C : α} (hC : 0 < C) (hf : tendsto f l at_top) (hg : tendsto g l (𝓝 C)) :
+lemma filter.tendsto.at_top_mul {C : α} (hC : 0 < C) (hf : tendsto f l at_top)
+  (hg : tendsto g l (𝓝 C)) :
   tendsto (λ x, (f x * g x)) l at_top :=
 begin
-  refine tendsto_at_top_mono' _ _ (tendsto_at_top_mul_right' (half_pos hC) hf),
-  filter_upwards [hg (lt_mem_nhds (half_lt_self hC)), hf (eventually_ge_at_top 0)],
-  dsimp,
+  rcases exists_between hC with ⟨c, h₀, hc⟩,
+  refine tendsto_at_top_mono' _ _ (hf.at_top_mul_const' h₀),
+  filter_upwards [hg.eventually (lt_mem_nhds hc), hf.eventually (eventually_ge_at_top 0)],
   exact λ x hg hf, mul_le_mul_of_nonneg_left hg.le hf
 end
 
 /-- In a linearly ordered field with the order topology, if `f` tends to `at_top` and `g` tends to
 a negative constant `C` then `f * g` tends to `at_bot`. -/
-lemma tendsto_mul_at_bot {C : α} (hC : C < 0) (hf : tendsto f l at_top) (hg : tendsto g l (𝓝 C)) :
+lemma filter.tendsto.at_top_mul_neg {C : α} (hC : C < 0) (hf : tendsto f l at_top)
+  (hg : tendsto g l (𝓝 C)) :
   tendsto (λ x, (f x * g x)) l at_bot :=
 begin
-  rw tendsto_at_bot,
-  rw tendsto_at_top at hf,
-  rw tendsto_order at hg,
-  intro b,
-  refine (hf (b/(C/2))).mp ((hg.2 (C/2) (by linarith)).mp ((hf 1).mp (eventually_of_forall _))),
-  intros x hx hltg hlef,
-  nlinarith [(div_le_iff_of_neg (div_neg_of_neg_of_pos hC zero_lt_two)).mp hlef],
+  rcases exists_between hC with ⟨c, hc, h₀⟩,
+  rw [← neg_pos] at hC,
+  refine tendsto_at_bot_mono' _ _ (tendsto_neg_at_top_at_bot.comp $
+    hf.at_top_mul_const' (neg_pos.2 h₀)),
+  filter_upwards [hg.eventually (gt_mem_nhds hc), hf.eventually (eventually_ge_at_top 0)],
+  intros x hg hf,
+  simp [mul_le_mul_of_nonneg_left hg.le hf]
 end
+
+/-- In a linearly ordered field with the order topology, if `f` tends to `at_bot` and `g` tends to
+a positive constant `C` then `f * g` tends to `at_bot`. -/
+lemma filter.tendsto.at_bot_mul {C : α} (hC : 0 < C) (hf : tendsto f l at_bot)
+  (hg : tendsto g l (𝓝 C)) :
+  tendsto (λ x, (f x * g x)) l at_bot :=
+by simpa [(∘)]
+  using tendsto_neg_at_top_at_bot.comp ((tendsto_neg_at_bot_at_top.comp hf).at_top_mul hC hg)
+
+/-- In a linearly ordered field with the order topology, if `f` tends to `at_bot` and `g` tends to
+a negative constant `C` then `f * g` tends to `at_top`. -/
+lemma filter.tendsto.at_bot_mul_neg {C : α} (hC : C < 0) (hf : tendsto f l at_bot)
+  (hg : tendsto g l (𝓝 C)) :
+  tendsto (λ x, (f x * g x)) l at_top :=
+by simpa [(∘)]
+  using tendsto_neg_at_bot_at_top.comp ((tendsto_neg_at_bot_at_top.comp hf).at_top_mul_neg hC hg)
 
 end linear_ordered_field
 

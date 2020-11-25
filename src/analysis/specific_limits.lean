@@ -121,8 +121,7 @@ begin
     k ^ (n + 1) * v 0 = k*(k^n*v 0) : by ring_exp
                   ... ≤ k*v n       : mul_le_mul_of_nonneg_left ih (by linarith)
                   ... ≤ v (n + 1)   : le_of_lt (hu n) },
-  apply tendsto_at_top_mul_right h₀,
-  exact tendsto_pow_at_top_at_top_of_one_lt hk,
+  exact (tendsto_pow_at_top_at_top_of_one_lt hk).at_top_mul_const h₀,
 end
 
 lemma nnreal.tendsto_pow_at_top_nhds_0_of_lt_1 {r : nnreal} (hr : r < 1) :
