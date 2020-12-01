@@ -83,9 +83,10 @@ begin
   exact bot_is_maximal,
 end
 
--- k → I.quotient is an algebraic extension by some jacobson properties (eisenbud 4.19)
--- so since k is alg closed I.quotient must just be k
--- In particular lemmaB half proved in jacobson.lean should help with this
+-- Generally for any Jacobson ring R, if there exists a field K of finite type over R,
+--  then R is a field and K/R is a finite field extension.
+-- In the case R is already algebraicly closed, this implies K is just R
+-- So since I.quotient is a field for any I maximal, I.quotient ≃+* k
 def zariski_lemma (I : ideal (mv_polynomial σ k)) [I.is_maximal] :
   I.quotient ≃+* k :=
 begin
@@ -111,7 +112,7 @@ begin
     convert hp,
 
     rw mv_polynomial.eval_eq',
-    -- Eisenbud just states this is clear
+    -- Eisenbud just states this, but I think in lean it is nontrivial to prove
     sorry,
   },
   -- have := local_ring.eq_maximal_ideal,
