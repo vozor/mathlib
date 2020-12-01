@@ -83,20 +83,35 @@ begin
   exact bot_is_maximal,
 end
 
--- Should be able to prove easily with facts about k being jacobson
-lemma lemma3 (I : ideal (mv_polynomial σ k)) :
-  I.is_maximal ↔ ∃ (x : σ → k), I' {x} = I:=
+-- k → I.quotient is an algebraic extension by some jacobson properties (eisenbud 4.19)
+-- so since k is alg closed I.quotient must just be k
+-- In particular lemmaB half proved in jacobson.lean should help with this
+def zariski_lemma (I : ideal (mv_polynomial σ k)) [I.is_maximal] :
+  I.quotient ≃+* k :=
 begin
+  sorry,
+end
+
+lemma lemma3 (I : ideal (mv_polynomial σ k)) :
+  I.is_maximal ↔ ∃ (x : σ → k), I' {x} = I :=
+begin
+  haveI H : ideal.is_jacobson (mv_polynomial σ k) := by apply_instance,
   refine ⟨λ hI, _, λ h, let ⟨x, hx⟩ := h in hx ▸ ideal_singleton_maximal x⟩,
+  haveI : I.is_maximal := hI,
   -- S/I is algebraic over k by jacobson stuff, which is already algebraicly closed, so equal
-  have e : I.quotient ≃+* k := sorry,
+  have e : I.quotient ≃+* k := zariski_lemma I,
   let x : σ → k := λ s, e.to_ring_hom ((ideal.quotient.mk I) (mv_polynomial.X s)),
   refine ⟨x, _⟩,
-  -- Not clear in any references how to prove exactly
   have : I' {x} ≤ I, {
     intros p hp,
-    rw ← quotient.eq_zero_iff_mem,
     rw ← lemma1 at hp,
+
+    rw ← quotient.eq_zero_iff_mem,
+    refine e.injective (trans _ (e.to_ring_hom.map_zero).symm),
+    convert hp,
+
+    rw mv_polynomial.eval_eq',
+    -- Eisenbud just states this is clear
     sorry,
   },
   -- have := local_ring.eq_maximal_ideal,
@@ -106,7 +121,6 @@ end
 theorem nullstellensatz (I : ideal (mv_polynomial σ k)) :
   I' (V' (I)) = I.radical :=
 begin
-  haveI H : ideal.is_jacobson (mv_polynomial σ k) := by apply_instance,
   rw (radical_eq_jacobson I),
   refine le_antisymm _ _,
   { refine le_Inf _,

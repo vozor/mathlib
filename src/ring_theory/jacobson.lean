@@ -399,6 +399,85 @@ end
 instance [is_jacobson R] : is_jacobson (polynomial R) :=
 is_jacobson_polynomial_iff_is_jacobson.mpr ‹is_jacobson R›
 
+-- TODO : this is basically a copy of earlier proof with only part
+-- lemma lemmaA {R S : Type*} [integral_domain R] [integral_domain S]
+--   {Rₘ Sₘ : Type*} [comm_ring Rₘ] [comm_ring Sₘ] [is_jacobson R]
+--   (φ : R →+* S) (hφ : function.injective φ) (x : R) (hx : x ≠ 0)
+--   (ϕ : localization_map (submonoid.powers x) Rₘ)
+--   (ϕ' : localization_map ((submonoid.powers x).map φ : submonoid S) Sₘ)
+--   (hφ' : (ϕ.map ((submonoid.powers x).mem_map_of_mem (φ : R →* S)) ϕ').is_integral)
+--   (I : ideal Sₘ) [hI : I.is_maximal] :
+--   (quotient_map (I.comap ϕ'.to_map) φ le_rfl).is_integral :=
+-- begin
+--   have hM : ((submonoid.powers x).map φ : submonoid S) ≤ non_zero_divisors S :=
+--     map_le_non_zero_divisors_of_injective hφ (powers_le_non_zero_divisors_of_domain hx),
+--   letI : integral_domain Sₘ := localization_map.integral_domain_of_le_non_zero_divisors ϕ' hM,
+--   let φ' : Rₘ →+* Sₘ := ϕ.map ((submonoid.powers x).mem_map_of_mem (φ : R →* S)) ϕ',
+--   haveI : (I.comap ϕ'.to_map).is_prime := comap_is_prime ϕ'.to_map I,
+--   haveI : (I.comap φ').is_prime := comap_is_prime φ' I,
+--   haveI : (⊥ : ideal (I.comap ϕ'.to_map).quotient).is_prime := bot_prime,
+--   have hcomm: φ'.comp ϕ.to_map = ϕ'.to_map.comp φ := ϕ.map_comp _,
+--   let f := quotient_map (I.comap ϕ'.to_map) φ le_rfl,
+--   let f' := quotient_map I φ' le_rfl,
+--   let g := quotient_map I ϕ'.to_map le_rfl,
+--   let g' : ((I.comap ϕ'.to_map).comap φ).quotient →+* (I.comap φ').quotient :=
+--     quotient_map (I.comap φ') ϕ.to_map
+--     (le_of_eq (trans (comap_comap φ ϕ'.to_map) (hcomm ▸ (comap_comap ϕ.to_map φ').symm))),
+--   have := ((is_maximal_iff_is_maximal_disjoint ϕ _).1
+--     (is_maximal_comap_of_is_integral_of_is_maximal' φ' hφ' I hI)).left,
+--   have : ((I.comap ϕ'.to_map).comap φ).is_maximal,
+--   { rwa [comap_comap, hcomm, ← comap_comap] at this },
+--   rw ← bot_quotient_is_maximal_iff at this,
+--   exact f.is_integral_tower_bot_of_is_integral g quotient_map_injective
+--     ((comp_quotient_map_eq_of_comp_eq hcomm I).symm ▸
+--     (ring_hom.is_integral_trans _ _ (ring_hom.is_integral_of_surjective _
+--       (localization_map.surjective_quotient_map_of_maximal_of_localization
+--       (by rwa [comap_comap, hcomm, ← bot_quotient_is_maximal_iff])))
+--       (ring_hom.is_integral_quotient_of_is_integral _ hφ'))),
+-- end
+
+-- lemma lemmaB (R : Type*) [integral_domain R] [hR : is_jacobson R]
+--   (P : ideal (polynomial R)) [hP : P.is_maximal] (hP : P ≠ ⊥)
+--   (hPC : ∀ (x : R), C x ∈ P → x = 0) :
+--   (quotient_map P (C : R →+* polynomial R) le_rfl).is_integral :=
+-- begin
+--   haveI : is_jacobson (polynomial R) := by apply_instance,
+
+--   let φ : R →+* polynomial R := C,
+--   have hφ : function.injective φ := λ x y, C_inj.mp,
+
+--   let P' : ideal R := P.comap C,
+--   have hP'_inj : function.injective (quotient.mk P') := (quotient.mk P').injective_iff.2
+--     (λ x hx, hPC _ (by rwa quotient.eq_zero_iff_mem at hx)),
+--   haveI : P'.is_prime := comap_is_prime C P,
+--   have : ∃ (p : polynomial R) (hp : p ∈ P), p ≠ 0,
+--   { contrapose! hP,
+--     exact eq_bot_iff.2 (λ x hx, (hP x hx).symm ▸ (ideal.zero_mem ⊥)) },
+--   obtain ⟨pX, hpX, hp0⟩ := this,
+--   have hp0 : (pX.map (quotient.mk P')) ≠ 0 :=
+--     λ hp0', hp0 $ map_injective (quotient.mk P') hP'_inj (by simpa using hp0'),
+
+--   have hφ : function.injective φ := sorry,
+--   let M : submonoid R := submonoid.powers pX.leading_coeff,
+--   let M' : submonoid (polynomial R) := M.map φ,
+--   let ϕ : localization_map M (localization M) := localization.of M,
+--   let ϕ' : localization_map M' (localization (M')) := localization.of (M'),
+--   -- -- let φ' : (localization M) →+* (localization (M.map ↑φ)) :=
+--   -- --   (ϕ.map (M.mem_map_of_mem (φ) ϕ')),
+
+--   let Pₘ : ideal (localization M') := P.map ϕ'.to_map,
+--   haveI : Pₘ.is_maximal := sorry,
+
+--   have hPₘ : Pₘ.comap ϕ'.to_map = P := sorry,
+
+--   have := lemmaA φ hφ pX.leading_coeff sorry ϕ ϕ' sorry Pₘ,
+
+--   rw hPₘ at this,
+
+--   exact this,
+
+-- end
+
 lemma is_jacobson_mv_polynomial_fin [H : is_jacobson R] :
   ∀ (n : ℕ), is_jacobson (mv_polynomial (fin n) R)
 | 0 := ((is_jacobson_iso ((mv_polynomial.ring_equiv_of_equiv R
