@@ -1,30 +1,37 @@
 import ring_theory.jacobson
 import field_theory.algebraic_closure
 
--- Proof of the classical hilbert nullstellensatz
-
-noncomputable theory
-
 open ideal
 
-variables {k : Type*} [field k] [is_alg_closed k]
-variables {σ : Type*} [fintype σ]
+-- These should be moved out later
+
+lemma ideal.radical_radical {R : Type*} [comm_ring R] (I : ideal R) :
+  I.radical.radical = I.radical :=
+le_antisymm (λ x hx, let ⟨n, ⟨m, hm⟩⟩ := hx in ⟨n * m, by rwa pow_mul x n m⟩) le_radical
 
 lemma jacobson_radical_eq_jacobson {R : Type*} [comm_ring R] (I : ideal R) :
   I.radical.jacobson = I.jacobson :=
 begin
   refine le_antisymm _ (jacobson_mono le_radical),
   rw radical_eq_Inf,
-  refine Inf_le_Inf (λ J hJ, ⟨Inf_le ⟨hJ.1, hJ.2.is_prime⟩, hJ.2⟩),
+  exact Inf_le_Inf (λ J hJ, ⟨Inf_le ⟨hJ.1, hJ.2.is_prime⟩, hJ.2⟩),
 end
 
 lemma radical_eq_jacobson_of_is_jacobson {R : Type*} [comm_ring R] [H : is_jacobson R]
   (I : ideal R ): I.jacobson = I.radical :=
-begin
-  specialize H I.radical sorry,
-  refine trans _ H,
-  refine (jacobson_radical_eq_jacobson I).symm,
-end
+trans (jacobson_radical_eq_jacobson I).symm (H I.radical I.radical_radical)
+
+lemma ring_equiv.bot_maximal_iff {R S : Type*} [comm_ring R] [comm_ring S] (e : R ≃+* S) :
+  (⊥ : ideal R).is_maximal ↔ (⊥ : ideal S).is_maximal :=
+⟨λ h, (@map_bot _ _ _ _ e.to_ring_hom) ▸ map.is_maximal e.to_ring_hom e.bijective h,
+  λ h, (@map_bot _ _ _ _ e.symm.to_ring_hom) ▸ map.is_maximal e.symm.to_ring_hom e.symm.bijective h⟩
+
+-- Proof of the classical hilbert nullstellensatz
+
+noncomputable theory
+
+variables {k : Type*} [field k] [is_alg_closed k]
+variables {σ : Type*} [fintype σ]
 
 def V' (I : ideal (mv_polynomial σ k)) : set (σ → k) :=
   {x : σ → k | ∀ p ∈ I, mv_polynomial.eval x p = 0}
@@ -59,43 +66,41 @@ lemma lemma1 (x : σ → k) (p : mv_polynomial σ k) :
   (mv_polynomial.eval x p = 0) ↔ p ∈ (I' {x} : ideal (mv_polynomial σ k)) :=
 ⟨λ hpx y hy, hy.symm ▸ hpx, λ h, h x rfl⟩
 
--- I don't think this is the right inverse function
-def lemma_iso (x : σ → k) : (I' {x} : ideal (mv_polynomial σ k)).quotient ≃+* k := {
-  to_fun := ideal.quotient.lift _ (mv_polynomial.eval x) (λ p hp, (lemma1 x p).mpr hp),
-  inv_fun := (ideal.quotient.mk (I' {x})).comp mv_polynomial.C,
-  left_inv := sorry,
-  right_inv := sorry,
-  map_add' := sorry,
-  map_mul' := sorry,
-}
-
-lemma lemma4' (x : σ → k) : (I' {x} : ideal (mv_polynomial σ k)).is_maximal :=
+def lemma_iso (x : σ → k) : (I' {x} : ideal (mv_polynomial σ k)).quotient ≃+* k :=
+ring_equiv.of_bijective (ideal.quotient.lift _ (mv_polynomial.eval x) (λ p hp, (lemma1 x p).mpr hp))
 begin
-  rw ← bot_quotient_is_maximal_iff,
-  have : (⊥ : ideal k).is_maximal := bot_is_maximal,
-  sorry,
+  refine ⟨_, λ z, ⟨(ideal.quotient.mk (I' {x})) (mv_polynomial.C z), by simp⟩⟩,
+  rw ring_hom.injective_iff,
+  intros p hp,
+  obtain ⟨q, rfl⟩ := quotient.mk_surjective p,
+  rw quotient.lift_mk at hp,
+  rwa [quotient.eq_zero_iff_mem, ← lemma1],
 end
 
-
-lemma lemma4 (x : σ → k) : (I' {x} : ideal (mv_polynomial σ k)).is_maximal :=
+lemma ideal_singleton_maximal (x : σ → k) : (I' {x} : ideal (mv_polynomial σ k)).is_maximal :=
 begin
-  refine ⟨_, _⟩,
-  {
-    rw ne_top_iff_one,
-    refine λ h, by simpa using h x rfl,
-  },
-  {
-    intros J hJ,
-    rw eq_top_iff_one,
-    sorry,
-  },
+  rw [← bot_quotient_is_maximal_iff, (lemma_iso x).bot_maximal_iff],
+  exact bot_is_maximal,
 end
 
 -- Should be able to prove easily with facts about k being jacobson
 lemma lemma3 (I : ideal (mv_polynomial σ k)) :
-  I.is_maximal ↔ ∃ (x : σ → k), I = I' {x} :=
+  I.is_maximal ↔ ∃ (x : σ → k), I' {x} = I:=
 begin
-  sorry,
+  refine ⟨λ hI, _, λ h, let ⟨x, hx⟩ := h in hx ▸ ideal_singleton_maximal x⟩,
+  -- S/I is algebraic over k by jacobson stuff, which is already algebraicly closed, so equal
+  have e : I.quotient ≃+* k := sorry,
+  let x : σ → k := λ s, e.to_ring_hom ((ideal.quotient.mk I) (mv_polynomial.X s)),
+  refine ⟨x, _⟩,
+  -- Not clear in any references how to prove exactly
+  have : I' {x} ≤ I, {
+    intros p hp,
+    rw ← quotient.eq_zero_iff_mem,
+    rw ← lemma1 at hp,
+    sorry,
+  },
+  -- have := local_ring.eq_maximal_ideal,
+  exact is_maximal.eq_of_le (ideal_singleton_maximal x) hI.1 this,
 end
 
 theorem nullstellensatz (I : ideal (mv_polynomial σ k)) :
@@ -107,12 +112,11 @@ begin
   { refine le_Inf _,
     rintros J ⟨hJI, hJ⟩,
     obtain ⟨x, hx⟩ := (lemma3 J).1 hJ,
-    refine hx.symm ▸ I'_anti_mono (λ y hy p hp, _),
-    rw [lemma1, set.mem_singleton_iff.1 hy, ← hx],
+    refine hx ▸ I'_anti_mono (λ y hy p hp, _),
+    rw [lemma1, set.mem_singleton_iff.1 hy, hx],
     refine hJI hp },
   { refine λ p hp x hx, _,
     rw lemma1 x p,
-    refine (mem_Inf.mp hp) _,
-    refine ⟨le_trans (le_zariski_closure I) (I'_anti_mono (λ y hy, hy.symm ▸ hx)), lemma4 x⟩,
-  },
+    refine (mem_Inf.mp hp) ⟨le_trans (le_zariski_closure I)
+      (I'_anti_mono (λ y hy, hy.symm ▸ hx)), ideal_singleton_maximal x⟩ },
 end
