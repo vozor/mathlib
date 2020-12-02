@@ -106,13 +106,15 @@ begin
   have : I' {x} ≤ I, {
     intros p hp,
     rw ← lemma1 at hp,
-
     rw ← quotient.eq_zero_iff_mem,
-    refine e.injective (trans _ (e.to_ring_hom.map_zero).symm),
+    suffices : e.to_ring_hom ((ideal.quotient.mk I) p) = 0,
+    { exact e.injective (trans this (e.to_ring_hom.map_zero).symm) },
+    rw mv_polynomial.as_sum p,
+    rw ring_hom.map_sum,
+    rw ring_hom.map_sum,
+    rw mv_polynomial.eval_eq' at hp,
     convert hp,
-
-    rw mv_polynomial.eval_eq',
-    -- Eisenbud just states this, but I think in lean it is nontrivial to prove
+    refine funext (λ x', _),
     sorry,
   },
   -- have := local_ring.eq_maximal_ideal,
