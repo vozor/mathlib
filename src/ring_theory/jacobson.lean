@@ -454,10 +454,15 @@ begin
   { contrapose! hP,
     exact eq_bot_iff.2 (λ x hx, (hP x hx).symm ▸ (ideal.zero_mem ⊥)) },
   obtain ⟨pX, hpX, hp0⟩ := this,
-  have hp0 : (pX.map (quotient.mk P')) ≠ 0 :=
-    λ hp0', hp0 $ map_injective (quotient.mk P') hP'_inj (by simpa using hp0'),
+  -- have hp0 : (pX.map (quotient.mk P')) ≠ 0 :=
+  --   λ hp0', hp0 $ map_injective (quotient.mk P') hP'_inj (by simpa using hp0'),
 
-  have hφ : function.injective φ := sorry,
+  have hp0'' : (pX.leading_coeff ≠ 0),
+  {
+    refine λ h, hp0 _,
+    rwa leading_coeff_eq_zero at h,
+  },
+
   let M : submonoid R := submonoid.powers pX.leading_coeff,
   let M' : submonoid (polynomial R) := M.map φ,
   let ϕ : localization_map M (localization M) := localization.of M,
@@ -470,12 +475,66 @@ begin
 
   have hPₘ : Pₘ.comap ϕ'.to_map = P := sorry,
 
-  have := lemmaA φ hφ pX.leading_coeff sorry ϕ ϕ' sorry Pₘ,
+  have := lemmaA φ hφ pX.leading_coeff hp0'' ϕ ϕ' _ Pₘ,
 
   rw hPₘ at this,
 
   exact this,
+  sorry,
 
+end
+
+lemma localization_map_bijective_of_field {R Rₘ : Type*} [integral_domain R] [comm_ring Rₘ]
+  {M : submonoid R} (hM : (0 : R) ∉ M) (hR : is_field R)
+  (f : localization_map M Rₘ) : function.bijective f.to_map :=
+begin
+  refine ⟨f.injective (le_non_zero_divisors_of_domain hM), λ x, _⟩,
+  obtain ⟨r, ⟨m, hm⟩, rfl⟩ := f.mk'_surjective x,
+  have hm0 : m ≠ 0 := λ hm0, hM (hm0 ▸ hm),
+  obtain ⟨n, hn⟩ := hR.mul_inv_cancel hm0,
+  use r * n,
+  erw [f.eq_mk'_iff_mul_eq, ← f.to_map.map_mul, mul_assoc, mul_comm n, hn, mul_one],
+end
+
+
+noncomputable lemma desired {R : Type*} [integral_domain R] [is_jacobson R]
+  {P : ideal (polynomial R)} [P.is_maximal] (hP : ∀ (x : R), C x ∈ P → x = 0) :
+  (quotient_map P (C : R →+* polynomial R) le_rfl).is_integral :=
+begin
+  let P' : ideal R := P.comap C,
+  haveI hp'_max : P'.is_maximal := sorry,
+  have hP' : P ≠ ⊥ := sorry,
+  have hP'_inj : function.injective (quotient.mk P') := (quotient.mk P').injective_iff.2
+      (λ x hx, by rwa [quotient.eq_zero_iff_mem, (by rwa eq_bot_iff : P' = ⊥)] at hx),
+  have : ∃ (p : polynomial R) (hp : p ∈ P), p ≠ 0,
+    { contrapose! hP',
+    exact eq_bot_iff.2 (λ x hx, (hP' x hx).symm ▸ (ideal.zero_mem ⊥)) },
+  obtain ⟨pX, hpX, hp0⟩ := this,
+  have hp0 : (pX.map (quotient.mk P')) ≠ 0 :=
+    λ hp0', hp0 $ map_injective (quotient.mk P') hP'_inj (by simpa using hp0'),
+
+  let φ : P'.quotient →+* P.quotient := quotient_map P C le_rfl,
+  let M : submonoid P'.quotient := submonoid.powers (pX.map (quotient.mk P')).leading_coeff,
+  let ϕ : localization_map M (localization M) := localization.of M,
+  let ϕ' : localization_map (M.map ↑φ) (localization (M.map ↑φ)) := localization.of (M.map ↑φ),
+  let φ' : (localization M) →+* (localization (M.map ↑φ)) :=
+    (ϕ.map (M.mem_map_of_mem (φ : P'.quotient →* P.quotient)) ϕ'),
+
+  have hcomm: φ'.comp ϕ.to_map = ϕ'.to_map.comp φ := ϕ.map_comp _,
+
+  suffices : φ'.is_integral,
+  {
+    have : (φ'.comp ϕ.to_map).is_integral := ring_hom.is_integral_trans ϕ.to_map φ' (begin
+      refine ϕ.to_map.is_integral_of_surjective _,
+      refine (localization_map_bijective_of_field _ _ ϕ).2,
+      {
+        sorry,
+      },
+      by rwa ← quotient.maximal_ideal_iff_is_field_quotient,
+    end) this,
+    rw hcomm at this,
+    refine φ.is_integral_tower_bot_of_is_integral ϕ'.to_map sorry this,
+  }
 end
 
 lemma is_jacobson_mv_polynomial_fin [H : is_jacobson R] :
