@@ -447,17 +447,28 @@ begin
     exact hp0 this }
 end
 
-/-- If `R` is a jacobson ring, and `P` is a maximal ideal of `polynomial R`,
-  then `R → (polynomial R)/P` is an integral map.
-  The requirement that `P.comap C ≤ ⊥` makes this equivalent -/
-lemma lemmaB {R : Type*} [integral_domain R] [is_jacobson R]
-  {P : ideal (polynomial R)} [hP_max : P.is_maximal] (hP : P.comap C ≤ ⊥) :
-  (quotient_map P (C : R →+* polynomial R) le_rfl).is_integral :=
+lemma eq_zero_of_constant_mem_of_maximal {R : Type*} [comm_ring R] (hR : is_field R)
+  (I : ideal (polynomial R)) [hI : I.is_maximal] (x : R) (hx : C x ∈ I) : x = 0 :=
 begin
+  refine classical.by_contradiction (λ hx0, hI.1 ((eq_top_iff_one I).2 _)),
+  obtain ⟨y, hy⟩ := hR.mul_inv_cancel hx0,
+  have := I.smul_mem (C y) hx,
+  rwa [smul_eq_mul, ← C.map_mul, mul_comm y x, hy] at this,
+end
+
+/-- If `R` is a jacobson field, and `P` is a maximal ideal of `polynomial R`,
+  then `R → (polynomial R)/P` is an integral map. -/
+lemma lemmaB {R : Type*} [integral_domain R] [is_jacobson R]
+  (hR : is_field R)
+  {P : ideal (polynomial R)} [hP : P.is_maximal] :
+  ((quotient.mk P).comp C : R →+* P.quotient).is_integral :=
+begin
+  have hP' : (∀ (x : R), C x ∈ P → x = 0) := eq_zero_of_constant_mem_of_maximal hR P,
+
   let P' : ideal R := P.comap C,
   haveI hp'_prime : P'.is_prime := comap_is_prime C P,
-  have hP' : P ≠ ⊥ := (ne_of_lt (bot_lt_of_maximal P polynomial_not_field)).symm,
-  obtain ⟨pX, hpX, hp0⟩ := exists_non_zero_mem_of_ne_bot P hP',
+  obtain ⟨pX, hpX, hp0⟩ :=
+    exists_non_zero_mem_of_ne_bot P (ne_of_lt (bot_lt_of_maximal P polynomial_not_field)).symm,
 
   have hp0 : (pX.map (quotient.mk P')).leading_coeff ≠ 0 :=
     λ hp0', hp0 $ map_injective (quotient.mk P') ((quotient.mk P').injective_iff.2
@@ -473,19 +484,23 @@ begin
     (ϕ.map (M.mem_map_of_mem (φ : P'.quotient →* P.quotient)) ϕ'),
 
   have hcomm: φ'.comp ϕ.to_map = ϕ'.to_map.comp φ := ϕ.map_comp _,
-
   have hφ : function.injective φ := quotient_map_injective,
   have hφ' : φ.comp (quotient.mk P') = (quotient.mk P).comp C := rfl,
-
   have hM : (0 : P'.quotient) ∉ M := λ hM, hp0 (let ⟨n, hn⟩ := hM in pow_eq_zero hn),
   have hM' : (0 : P.quotient) ∉ M' := λ hM', hM (let ⟨z, hz⟩ := hM' in (hφ (trans hz.2 φ.map_zero.symm)) ▸ hz.1),
-
   have hφ'_int : φ'.is_integral := is_integral_localization_map_polynomial_quotient P pX hpX ϕ ϕ',
+
+  suffices : φ.is_integral,
+  { have hcomp : φ.comp (quotient.mk P') = (quotient.mk P).comp C,
+    { refine ring_hom.ext (λ x, _),
+      simp only [function.comp_app, ring_hom.coe_comp, quotient_map_mk] },
+    refine hcomp ▸ ring_hom.is_integral_trans (quotient.mk P') φ _ this,
+    exact ring_hom.is_integral_of_surjective (quotient.mk P') quotient.mk_surjective },
 
   haveI : P'.is_maximal := begin
     letI : integral_domain (localization M') :=
       localization_map.integral_domain_localization (le_non_zero_divisors_of_domain hM'),
-    rw ← bot_quotient_is_maximal_iff at hP_max ⊢,
+    rw ← bot_quotient_is_maximal_iff at hP ⊢,
     suffices : (⊥ : ideal (localization M)).is_maximal,
     { rw ← ϕ.comap_map_of_is_prime_disjoint ⊥ bot_prime (λ x hx, hM (hx.2 ▸ hx.1)),
       refine ((is_maximal_iff_is_maximal_disjoint ϕ _).mp _).1,
@@ -496,7 +511,7 @@ begin
       refine is_maximal_comap_of_is_integral_of_is_maximal' φ' hφ'_int ⊥ this },
     have : (⊥ : ideal (localization M')) = map ϕ'.to_map ⊥ := map_bot.symm,
     rw this,
-    refine map.is_maximal ϕ'.to_map (localization_map_bijective_of_field hM' _ ϕ') hP_max,
+    refine map.is_maximal ϕ'.to_map (localization_map_bijective_of_field hM' _ ϕ') hP,
     rwa [← quotient.maximal_ideal_iff_is_field_quotient, ← bot_quotient_is_maximal_iff],
   end,
 

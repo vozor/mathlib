@@ -83,13 +83,22 @@ begin
   exact bot_is_maximal,
 end
 
+lemma missing {R : Type*} [integral_domain R] [algebra k R] (h : algebra.is_algebraic k R) :
+  k ≃+* R :=
+begin
+  sorry,
+end
+
 -- Generally for any Jacobson ring R, if there exists a field K of finite type over R,
 --  then R is a field and K/R is a finite field extension. (essentiall lemmaB in jacobson.lean)
 -- In the case R is already algebraicly closed, this implies K is just R
 -- So since I.quotient is a field for any I maximal, I.quotient ≃+* k
 def zariski_lemma (I : ideal (mv_polynomial σ k)) [I.is_maximal] :
-  I.quotient ≃+* k :=
+  k ≃+* I.quotient :=
 begin
+  letI : algebra k I.quotient := ((ideal.quotient.mk I).comp (mv_polynomial.C)).to_algebra,
+  refine missing _,
+  -- Need to extend lemmaB to mv_polynomials
   sorry,
 end
 
@@ -100,7 +109,7 @@ begin
   refine ⟨λ hI, _, λ h, let ⟨x, hx⟩ := h in hx ▸ ideal_singleton_maximal x⟩,
   haveI : I.is_maximal := hI,
   -- S/I is algebraic over k by jacobson stuff, which is already algebraicly closed, so equal
-  have e : I.quotient ≃+* k := zariski_lemma I,
+  have e : I.quotient ≃+* k := (zariski_lemma I).symm,
   let x : σ → k := λ s, e.to_ring_hom ((ideal.quotient.mk I) (mv_polynomial.X s)),
   refine ⟨x, _⟩,
   have : I' {x} ≤ I, {
@@ -117,7 +126,6 @@ begin
     refine funext (λ x', _),
     sorry,
   },
-  -- have := local_ring.eq_maximal_ideal,
   exact is_maximal.eq_of_le (ideal_singleton_maximal x) hI.1 this,
 end
 
