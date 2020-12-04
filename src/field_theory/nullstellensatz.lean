@@ -97,9 +97,9 @@ def zariski_lemma (I : ideal (mv_polynomial σ k)) [I.is_maximal] :
   k ≃+* I.quotient :=
 begin
   letI : algebra k I.quotient := ((ideal.quotient.mk I).comp (mv_polynomial.C)).to_algebra,
-  refine missing _,
-  -- Need to extend lemmaB to mv_polynomials
-  sorry,
+  refine missing (λ x, _),
+  rw is_algebraic_iff_is_integral,
+  refine (lemmaB' (field.to_is_field k) x),
 end
 
 lemma lemma3 (I : ideal (mv_polynomial σ k)) :

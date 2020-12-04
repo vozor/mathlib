@@ -432,7 +432,7 @@ begin
   erw [f.eq_mk'_iff_mul_eq, ← f.to_map.map_mul, mul_assoc, mul_comm n, hn, mul_one],
 end
 
-lemma polynomial_not_field {R : Type*} [comm_ring R] [nontrivial R] :
+lemma polynomial_not_is_field {R : Type*} [comm_ring R] [nontrivial R] :
   ¬ is_field (polynomial R) :=
 begin
   refine λ hR, _,
@@ -468,7 +468,7 @@ begin
   let P' : ideal R := P.comap C,
   haveI hp'_prime : P'.is_prime := comap_is_prime C P,
   obtain ⟨pX, hpX, hp0⟩ :=
-    exists_non_zero_mem_of_ne_bot P (ne_of_lt (bot_lt_of_maximal P polynomial_not_field)).symm,
+    exists_non_zero_mem_of_ne_bot P (ne_of_lt (bot_lt_of_maximal P polynomial_not_is_field)).symm,
 
   have hp0 : (pX.map (quotient.mk P')).leading_coeff ≠ 0 :=
     λ hp0', hp0 $ map_injective (quotient.mk P') ((quotient.mk P').injective_iff.2
@@ -542,6 +542,39 @@ begin
   obtain ⟨e⟩ := fintype.equiv_fin ι,
   rw is_jacobson_iso (mv_polynomial.ring_equiv_of_equiv R e),
   exact is_jacobson_mv_polynomial_fin _
+end
+
+lemma C_surj {R : Type*} [comm_ring R] :
+  function.surjective (mv_polynomial.C : R → mv_polynomial (fin 0) R) :=
+begin
+  refine λ p, ⟨p.to_fun 0, mv_polynomial.ext _ _ (λ a, _)⟩,
+  simpa [(finsupp.ext fin_zero_elim : a = 0), if_true, eq_self_iff_true, mv_polynomial.coeff_C],
+end
+
+lemma lemmaB'_bootstrap {R : Type*} [integral_domain R] [is_jacobson R]
+  {n : ℕ} (hR : is_field R)
+  {P : ideal (mv_polynomial (fin n) R)} [hP : P.is_maximal] :
+  ((quotient.mk P).comp mv_polynomial.C : R →+* P.quotient).is_integral :=
+begin
+  unfreezingI {induction n with n hn},
+  { have := (mv_polynomial.ring_equiv_of_equiv R
+      (equiv.equiv_pempty $ fin.elim0)).trans (mv_polynomial.pempty_ring_equiv R),
+    refine ring_hom.is_integral_of_surjective _ (function.surjective.comp quotient.mk_surjective _),
+    refine C_surj },
+  { have : (C : mv_polynomial (fin n) R →+* polynomial (mv_polynomial (fin n) R)).comp
+        (mv_polynomial.C : R →+* mv_polynomial (fin n) R) =
+      (mv_polynomial.fin_succ_equiv R n).to_ring_hom.comp (mv_polynomial.C) := sorry,
+    sorry }
+end
+
+lemma lemmaB' {R : Type*} [integral_domain R] [is_jacobson R]
+  {σ : Type*} [fintype σ] (hR : is_field R)
+  {P : ideal (mv_polynomial σ R)} [hP : P.is_maximal] :
+  ((quotient.mk P).comp mv_polynomial.C : R →+* P.quotient).is_integral :=
+begin
+  haveI := classical.dec_eq σ,
+  obtain ⟨e⟩ := fintype.equiv_fin σ,
+  sorry,
 end
 
 end polynomial
