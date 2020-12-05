@@ -450,6 +450,13 @@ lemma is_integral_tower_bot_of_is_integral_field {R A B : Type*} [comm_ring R] [
   {x : A} (h : is_integral R (algebra_map A B x)) : is_integral R x :=
 is_integral_tower_bot_of_is_integral (algebra_map A B).injective h
 
+lemma ring_hom.is_integral_elem_of_is_integral_elem_comp {x : T}
+  (h : (g.comp f).is_integral_elem x) : g.is_integral_elem x :=
+let ⟨p, ⟨hp, hp'⟩⟩ := h in ⟨p.map f, monic_map f hp, by rwa ← eval₂_map at hp'⟩
+
+lemma ring_hom.is_integral_tower_top_of_is_integral (h : (g.comp f).is_integral) : g.is_integral :=
+λ x, ring_hom.is_integral_elem_of_is_integral_elem_comp f g (h x)
+
 /-- If `R → A → B` is an algebra tower,
 then if the entire tower is an integral extension so is `A → B` -/
 lemma is_integral_tower_top_of_is_integral {x : B} (h : is_integral R x) : is_integral A x :=
