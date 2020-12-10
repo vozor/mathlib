@@ -84,6 +84,8 @@ namespace sieve
 
 instance {X : C} : has_coe_to_fun (sieve X) := ⟨_, sieve.arrows⟩
 
+initialize_simps_projections sieve (arrows → apply)
+
 variables {S R : sieve X}
 
 @[simp, priority 100] lemma downward_closed (S : sieve X) {f : Y ⟶ X} (hf : S f)
