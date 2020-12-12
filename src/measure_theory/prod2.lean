@@ -96,7 +96,25 @@ by { convert pi_mem_insert_equiv α (show i ∉ (s : set ι), from hx),
 end equiv
 open equiv
 
+namespace measurable_equiv
 
+variables {ι : Type*} (α : ι → Type*)
+
+/- A pi-type over an empty type is equivalent to `punit`. Similar to `pempty_arrow_equiv_punit`. -/
+def pi_equiv_punit_of_empty (α : ι → Type*) (e : ι → false) : (Π i : ι, α i) ≃ punit :=
+@equiv_punit_of_unique _ ⟨⟨λ x, false.elim (e x)⟩, λ f, funext (λ x, false.elim (e x))⟩
+
+/- A pi-type over the empty set is equivalent to `punit`. Similar to `pi_equiv_punit_of_empty`. -/
+def pi_mem_empty_equiv : (Π i ∈ (∅ : set ι), α i) ≃ punit :=
+by { refine @equiv_punit_of_unique _ ⟨⟨λ _, false.elim⟩, λ f, funext (λ x, _)⟩, ext, contradiction }
+
+/- A pi-type over the empty `finset` is equivalent to `punit`.
+  Definitionally equal to `pi_mem_empty_equiv`. -/
+def pi_mem_finset_empty_equiv : (Π i ∈ (∅ : finset ι), α i) ≃ punit :=
+pi_mem_empty_equiv α
+
+
+end measurable_equiv
 
 namespace list
 
