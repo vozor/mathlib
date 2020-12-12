@@ -39,6 +39,7 @@ end
   extend_insert f x i (mem_insert i s) = x :=
 by simp [extend_insert]
 
+
 end function
 open function
 
@@ -49,7 +50,6 @@ lemma mem_insert_coe {s : finset α} {x y : α} : x ∈ insert y s ↔ x ∈ ins
 by simp
 
 end finset
-open finset
 
 
 namespace equiv
@@ -59,20 +59,28 @@ def true_arrow_equiv (α : Sort*) : (true → α) ≃ α :=
 
 variables {ι : Type*} (α : ι → Type*)
 
+/- A pi-type over an empty type has a unique element. -/
+def pi_unique_of_empty (α : ι → Type*) (e : ι → false) : unique (Π i : ι, α i) :=
+⟨⟨λ x, false.elim (e x)⟩, λ f, funext (λ x, false.elim (e x))⟩
+
+/- A pi-type over the empty set has a unique element. -/
+def unique_pi_mem_empty : unique (Π i ∈ (∅ : set ι), α i) :=
+⟨⟨λ _, false.elim⟩, λ f, funext $ λ x, funext $ λ hx, false.elim hx⟩
+
 /- A pi-type over an empty type is equivalent to `punit`. Similar to `pempty_arrow_equiv_punit`. -/
 def pi_equiv_punit_of_empty (α : ι → Type*) (e : ι → false) : (Π i : ι, α i) ≃ punit :=
-@equiv_punit_of_unique _ ⟨⟨λ x, false.elim (e x)⟩, λ f, funext (λ x, false.elim (e x))⟩
+@equiv_punit_of_unique _ (pi_unique_of_empty α e)
 
 /- A pi-type over the empty set is equivalent to `punit`. Similar to `pi_equiv_punit_of_empty`. -/
 def pi_mem_empty_equiv : (Π i ∈ (∅ : set ι), α i) ≃ punit :=
-by { refine @equiv_punit_of_unique _ ⟨⟨λ _, false.elim⟩, λ f, funext (λ x, _)⟩, ext, contradiction }
+@equiv_punit_of_unique _ (unique_pi_mem_empty α)
 
 /- A pi-type over the empty `finset` is equivalent to `punit`.
   Definitionally equal to `pi_mem_empty_equiv`. -/
 def pi_mem_finset_empty_equiv : (Π i ∈ (∅ : finset ι), α i) ≃ punit :=
 pi_mem_empty_equiv α
 
-/- A pi-type over the set `insert i s` is a binary product. -/
+/- A pi-type over the set `insert i s` is equivalent to a binary product. -/
 def pi_mem_insert_equiv {s : set ι} {i : ι} (hi : i ∉ s) :
   (Π j ∈ (insert i s), α j) ≃ α i × (Π j ∈ s, α j) :=
 { to_fun := λ f, ⟨f i (set.mem_insert _ _), λ j hj, f j (mem_insert_of_mem _ hj)⟩,
@@ -96,23 +104,148 @@ by { convert pi_mem_insert_equiv α (show i ∉ (s : set ι), from hx),
 end equiv
 open equiv
 
+instance : measurable_space punit := ⊤
+instance measurable_space.pi_prop {δ : Prop} {π : δ → Type*} [m : Π a, measurable_space (π a)] :
+  measurable_space (Π a, π a) :=
+⨆ a, (m a).comap (λ b, b a)
+
+section
+variables {α δ : Type*} {π : δ → Type*} [measurable_space α] [∀ x, measurable_space (π x)]
+lemma measurable.eval {a : δ} {g : α → Π a, π a}
+  (hg : measurable g) : measurable (λ x, g x a) :=
+(measurable_pi_apply a).comp hg
+
+lemma measurable_pi_iff {g : α → Π a, π a} :
+  measurable g ↔ ∀ a, measurable (λ x, g x a) :=
+by simp_rw [measurable_iff_comap_le, measurable_space.pi, measurable_space.comap_supr,
+    measurable_space.comap_comp, function.comp, supr_le_iff]
+
+-- variables [decidable_eq δ] {s : set δ} {i : δ}
+-- #print piecewise_preimage
+-- lemma measurable.extend_insert (x : π i) :
+--   measurable (λ f : Π (j : δ), j ∈ s → π j, extend_insert f x) :=
+-- begin
+--   intros t ht,
+
+-- end
+
+
+-- {s : set α} {_ : decidable_pred s} {f g : α → β}
+--   (hs : is_measurable s) (hf : measurable f) (hg : measurable g) :
+--   measurable (piecewise s f g) :=
+-- begin
+--   intros t ht,
+--   simp only [piecewise_preimage],
+--   exact (hs.inter $ hf ht).union (hs.compl.inter $ hg ht)
+-- end
+-- variables {ι : Type*} [decidable_eq ι] {α : ι → Type*} {s : set ι} {i : ι}
+
+-- def extend_insert (f : Π (j : ι), j ∈ s → α j) (x : α i) (j : ι) (hj : j ∈ insert i s) : α j :=
+-- if h : j = i then by { subst h, exact x } else f j (mem_of_mem_insert_of_ne hj h)
+
+end
+
+section
+
+variables {α β: Type*} {δ : Prop} {π : δ → Type*} [measurable_space α] [measurable_space β]
+  [∀ x, measurable_space (π x)]
+lemma measurable_pi_prop_apply (a : δ) : measurable (λ f : Π a, π a, f a) :=
+measurable.of_comap_le $ le_supr _ a
+
+lemma measurable_pi_prop_iff {g : α → Π a, π a} :
+  measurable g ↔ ∀ a, measurable (λ x, g x a) :=
+begin
+  simp_rw [measurable_iff_comap_le, measurable_space.pi_prop, measurable_space.comap_supr,
+    measurable_space.comap_comp, function.comp, supr_le_iff],
+  exact forall_congr (λ i, measurable_iff_comap_le.symm),
+end
+
+lemma measurable.eval_prop {a : δ} {g : α → Π a, π a}
+  (hg : measurable g) : measurable (λ x, g x a) :=
+(measurable_pi_prop_apply a).comp hg
+
+lemma measurable.eval_prop' {a : δ} {g : α → δ → β}
+  (hg : measurable g) : measurable (λ x, g x a) :=
+hg.eval_prop
+
+lemma measurable_pi_lambda_prop (f : α → Π a, π a) (hf : ∀ a, measurable (λ c, f c a)) :
+  measurable f :=
+measurable.of_le_map $ supr_le $ assume a, measurable_space.comap_le_iff_le_map.2 (hf a)
+
+
+end
 namespace measurable_equiv
 
-variables {ι : Type*} (α : ι → Type*)
+variables {α ι : Type*} [measurable_space α] (π π' : ι → Type*) [∀ x, measurable_space (π x)]
+  [∀ x, measurable_space (π' x)]
 
-/- A pi-type over an empty type is equivalent to `punit`. Similar to `pempty_arrow_equiv_punit`. -/
-def pi_equiv_punit_of_empty (α : ι → Type*) (e : ι → false) : (Π i : ι, α i) ≃ punit :=
-@equiv_punit_of_unique _ ⟨⟨λ x, false.elim (e x)⟩, λ f, funext (λ x, false.elim (e x))⟩
+/-- If `α` is a singleton, then it is measurably equivalent to any `punit`. -/
+def measurable_equiv_punit_of_unique [unique α] : α ≃ᵐ punit :=
+{ to_equiv := equiv_punit_of_unique,
+  measurable_to_fun := subsingleton.measurable,
+  measurable_inv_fun := subsingleton.measurable }
 
-/- A pi-type over the empty set is equivalent to `punit`. Similar to `pi_equiv_punit_of_empty`. -/
-def pi_mem_empty_equiv : (Π i ∈ (∅ : set ι), α i) ≃ punit :=
-by { refine @equiv_punit_of_unique _ ⟨⟨λ _, false.elim⟩, λ f, funext (λ x, _)⟩, ext, contradiction }
+/- A pi-type over an empty type is measurably equivalent to `punit`. -/
+def pi_of_empty (e : ι → false) : (Π i : ι, π i) ≃ᵐ punit :=
+@measurable_equiv_punit_of_unique _ _ (pi_unique_of_empty π e)
 
-/- A pi-type over the empty `finset` is equivalent to `punit`.
-  Definitionally equal to `pi_mem_empty_equiv`. -/
-def pi_mem_finset_empty_equiv : (Π i ∈ (∅ : finset ι), α i) ≃ punit :=
-pi_mem_empty_equiv α
+/- A pi-type over the empty set is measurably equivalent to `punit`. -/
+def pi_mem_empty : (Π i ∈ (∅ : set ι), π i) ≃ᵐ punit :=
+@measurable_equiv_punit_of_unique _ _ (unique_pi_mem_empty π)
 
+/- A pi-type over the empty `finset` is measurably equivalent to `punit`. -/
+def pi_mem_finset_empty : (Π i ∈ (∅ : finset ι), π i) ≃ᵐ punit :=
+pi_mem_empty π
+
+/- A pi-type over the set `insert i s` is measurably equivalent to a binary product. -/
+def pi_mem_insert {s : set ι} {i : ι} (hi : i ∉ s) :
+  (Π j ∈ (insert i s), π j) ≃ᵐ π i × (Π j ∈ s, π j) :=
+{ to_equiv := pi_mem_insert_equiv π hi,
+  measurable_to_fun := begin
+    simp_rw [pi_mem_insert_equiv, _root_.measurable_prod, measurable_pi_iff,
+      measurable_pi_prop_iff],
+    split,
+    { exact (@measurable_pi_apply _ (λ j, j ∈ insert i s → π j) _ i).eval_prop },
+    { intros j hj, exact (@measurable_pi_apply _ (λ j, j ∈ insert i s → π j) _ j).eval_prop },
+  end,
+  measurable_inv_fun := begin
+    simp_rw [pi_mem_insert_equiv, measurable_pi_iff, measurable_pi_prop_iff],
+    intros j hj, rcases hj with rfl|hj,
+    { simp [extend_insert, measurable_fst] },
+    { have : j ≠ i, { rintro rfl, exact hi hj },
+      simp only [extend_insert, this, dif_neg, not_false_iff],
+      exact measurable.eval_prop (@measurable.eval _ _ (λ j, j ∈ s → π j) _ _ _ _ measurable_snd) }
+  end }
+
+/- A pi-type over the `finset` `insert i s` is a binary product. -/
+-- this is super ugly, because simp doesn't work (probably because it doesn't want to rewrite types).
+-- How to simplify this?
+def pi_mem_finset_insert {s : finset ι} {i : ι} (hx : i ∉ s) :
+  (Π j ∈ (insert i s), π j) ≃ᵐ π i × (Π j ∈ s, π j) :=
+begin
+  convert pi_mem_insert π (show i ∉ (s : set ι), from hx),
+  apply pi_congr, intro j, rw [finset.mem_insert_coe],
+  ext i, rw [finset.mem_insert_coe],
+  ext, refl, rintro _ _ ⟨⟩,
+  rw [finset.mem_insert_coe]
+end
+
+variables {π π'}
+/-- A family of measurable equivalences `Π a, β₁ a ≃ᵐ β₂ a` generates a measurable equivalence
+  between  `Π a, β₁ a` and `Π a, β₂ a`. -/
+def Pi_congr_right (e : Π a, π a ≃ᵐ π' a) : (Π a, π a) ≃ᵐ (Π a, π' a) :=
+{ to_equiv := Pi_congr_right (λ a, (e a).to_equiv),
+  measurable_to_fun :=
+    measurable_pi_lambda _ (λ i, (e i).measurable_to_fun.comp (measurable_pi_apply i)),
+  measurable_inv_fun :=
+    measurable_pi_lambda _ (λ i, (e i).measurable_inv_fun.comp (measurable_pi_apply i)) }
+
+/-- The type of maps from `true` is measurably equivalent to the codomain. -/
+variable (α)
+def true_arrow : (true → α) ≃ᵐ α :=
+{ to_equiv := true_arrow_equiv α,
+  measurable_to_fun := measurable_pi_prop_apply _,
+  measurable_inv_fun := measurable_pi_lambda_prop _ (λ x, measurable_id) }
 
 end measurable_equiv
 
@@ -149,7 +282,7 @@ begin
 end
 
 /-- A pi-type over a `fintype` is equivalent to an iterated product. -/
-lemma pi_fintype_equiv_tprod [fintype ι] :
+lemma exists_pi_fintype_equiv_tprod [fintype ι] :
   ∃ l : list ι, nodup l ∧ nonempty ((Π i, α i) ≃ l.tprod α) :=
 begin
   rcases to_finset_surj_on (mem_univ (finset.univ : finset ι)) with ⟨l, h1l, h2l⟩,
@@ -159,60 +292,47 @@ begin
   exact (true_arrow_equiv _).symm
 end
 
-instance : measurable_space punit := ⊤
-instance measurable_space.pi_Prop {δ : Prop} {π : δ → Type*} [m : Π a, measurable_space (π a)] :
-  measurable_space (Π a, π a) :=
-⨆ a, (m a).comap (λ b, b a)
-
 instance tprod.measurable_space [∀ i, measurable_space (α i)] :
   ∀ (l : list ι), measurable_space (l.tprod α)
 | []        := punit.measurable_space
 | (i :: is) := @prod.measurable_space _ _ _ (tprod.measurable_space is)
 
 def pi_finset_measurable_equiv_tprod [∀ i, measurable_space (α i)]
-  {s : finset ι} {l : list ι} (h : l.to_finset = s) :
-  measurable_equiv (Π i ∈ s, α i) (l.tprod α) :=
+  {s : finset ι} {l : list ι} (hl : l.to_finset = s) (h : l.nodup) :
+  (Π i ∈ s, α i) ≃ᵐ l.tprod α :=
 begin
   subst s, induction l with i l ih,
-  { exact pi_mem_finset_empty_equiv α },
+  { exact measurable_equiv.pi_mem_finset_empty α },
   { rw [to_finset_cons], rw [nodup_cons, ← mem_to_finset] at h,
-    refine (pi_mem_finset_insert_equiv α h.1).trans _, exact (equiv.refl _).prod_congr (ih h.2) }
+    refine (measurable_equiv.pi_mem_finset_insert α h.1).trans _,
+    exact (measurable_equiv.refl _).prod_congr (ih h.2) }
 end
 
 def pi_fintype_measurable_equiv_tprod [fintype ι] [∀ i, measurable_space (α i)] :
-  ∃ l : list ι, l.nodup ∧ nonempty (measurable_equiv (Π i, α i) (l.tprod α)) :=
+  ∃ l : list ι, l.nodup ∧ nonempty ((Π i, α i) ≃ᵐ l.tprod α) :=
 begin
-  cases to_finset_surjective (finset.univ : finset ι) with l hl, refine ⟨⟨l, _⟩⟩,
-  refine measurable_equiv.trans _ (pi_finset_measurable_equiv_tprod _ hl),
-  refine Pi_congr_right _, intro i, rw [eq_true_intro (finset.mem_univ _)],
-  -- exact (true_arrow_equiv _).symm
+  rcases to_finset_surj_on (mem_univ (finset.univ : finset ι)) with ⟨l, h1l, h2l⟩,
+  refine ⟨l, h1l, ⟨_⟩⟩,
+  refine measurable_equiv.trans _ (pi_finset_measurable_equiv_tprod _ h2l h1l),
+  refine measurable_equiv.Pi_congr_right _, intro i, rw [eq_true_intro (finset.mem_univ _)],
+  exact (measurable_equiv.true_arrow (α i)).symm
 end
 
+-- lemma pi_fintype_rec {P : Type* → Type*}
+--   (h0 : P punit)
+--   (hp : ∀ ⦃α β⦄, P α → P β → P (α × β))
+--   (he : ∀ ⦃α β⦄, P α → β ≃ α → P β)
+--   (ι : Type*) [fintype ι] (α : ι → Type*) (h : Π i, P (α i)) : P (Π i, α i) :=
+-- begin
+--   generalize' hn : fintype.card ι = n,
+--   induction n,
+--   { refine he h0 _, refine pi_equiv_punit_of_empty _ _, rwa [← fintype.card_eq_zero_iff],  },
+--   { have : nonempty ι,
+--     sorry
 
 
-
--- def tprod_equiv_pi_to_finset : Π (l : list ι), tprod α l ≃ Π i ∈ l.to_finset, α i
--- | []        := (pi_mem_empty_equiv α).symm
--- | (i :: is) := _
-
-
--- #print fintype.card_eq_zero_equiv_equiv_pempty
--- #print pi_empty_equiv
-lemma pi_fintype_rec {P : Type* → Type*}
-  (h0 : P punit)
-  (hp : ∀ ⦃α β⦄, P α → P β → P (α × β))
-  (he : ∀ ⦃α β⦄, P α → β ≃ α → P β)
-  (ι : Type*) [fintype ι] (α : ι → Type*) (h : Π i, P (α i)) : P (Π i, α i) :=
-begin
-  generalize' hn : fintype.card ι = n,
-  induction n,
-  { refine he h0 _, refine pi_equiv_punit_of_empty _ _, rwa [← fintype.card_eq_zero_iff],  },
-  { have : nonempty ι,
-    sorry
-
-
-  }
-end
+--   }
+-- end
 
 end list
 
