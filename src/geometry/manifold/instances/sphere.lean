@@ -131,11 +131,11 @@ begin
   sorry
 end
 
-def in_sphere {v} (hv : ∥v∥ = 1) : sphere (0:E) 1 :=
-⟨v, (inner_product_space.mem_sphere_zero ℝ).mpr hv⟩
+-- def in_sphere {v} (hv : ∥v∥ = 1) : sphere (0:E) 1 :=
+-- ⟨v, (inner_product_space.mem_sphere_zero ℝ).mpr hv⟩
 
 lemma sphere_inter_hyperplane {v : E} (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : projR v x = 1) :
-  x = in_sphere hv :=
+  x = ⟨v, by simp [hv]⟩ :=
 begin
   suffices : ↑x = v,
   { ext,
@@ -150,7 +150,7 @@ begin
 end
 
 lemma sphere_inter_hyperplane'  {v : E} (hv : ∥v∥ = 1) :
-  ({(in_sphere hv)}ᶜ : set (sphere (0:E) 1)) ⊆ coe ⁻¹' {w : E | projR v w ≠ 1} :=
+  ({⟨v, by simp [hv]⟩}ᶜ : set (sphere (0:E) 1)) ⊆ coe ⁻¹' {w : E | projR v w ≠ 1} :=
 λ w h, h ∘ (sphere_inter_hyperplane hv)
 
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
@@ -217,7 +217,7 @@ def stereo_inv_fun (hv : ∥v∥ = 1) (w : orthog v) : sphere (0:E) 1 :=
 rfl
 
 lemma mem_north_pole_compl (hv : ∥v∥ = 1) (w : orthog v) :
-  stereo_inv_fun hv w ∈ ({in_sphere hv} : set (sphere (0:E) 1))ᶜ :=
+  stereo_inv_fun hv w ∈ ({⟨v, by simp [hv]⟩} : set (sphere (0:E) 1))ᶜ :=
 begin
   suffices : (stereo_inv_fun hv w : E) ≠ v,
   { intros h,
@@ -301,13 +301,30 @@ begin
     nlinarith }
 end
 
+lemma stereo_right_inv (hv : ∥v∥ = 1) (w : orthog v) :
+  (stereo_to_fun v ∘ coe) (stereo_inv_fun hv w) = w :=
+begin
+  have h₁ : proj'' v v = 0 := sorry,
+  have h₂ : proj'' v w = w := sorry,
+  have h₃ : projR v w = 0 := sorry,
+  have h₄ : projR v v = 1 := sorry,
+  simp only [stereo_to_fun, stereo_inv_fun, stereo_inv_fun_aux, function.comp_app],
+  simp only [h₁, h₂, h₃, h₄, add_zero, continuous_linear_map.map_add, zero_add,
+  subtype.coe_mk, mul_zero, smul_zero, continuous_linear_map.map_smul],
+  rw ← mul_smul,
+  rw ← mul_smul,
+  convert one_smul ℝ w,
+  have h_denom : ∥(w:E)∥ ^ 2 + 4 ≠ 0 := by nlinarith,
+  field_simp [h_denom],
+  ring
+end
 
 /-- Stereographic projection from the unit sphere in `E`, centred at a unit vector `v` in `E`; this
 is the version as a local homeomorphism. -/
 def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) (orthog v) :=
 { to_fun := (stereo_to_fun v) ∘ coe,
   inv_fun := stereo_inv_fun hv,
-  source := {(in_sphere hv)}ᶜ,
+  source := {⟨v, by simp [hv]⟩}ᶜ,
   target := set.univ,
   map_source' := by simp,
   map_target' := λ w _, mem_north_pole_compl hv w,
@@ -316,9 +333,9 @@ def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) (orthog
     apply stereo_left_inv hv,
     intros hx',
     apply hx,
-    simp [in_sphere, ← hx']
+    simp [← hx']
   end,
-  right_inv' := _,
+  right_inv' := λ w _, stereo_right_inv hv w,
   open_source := is_open_compl_singleton,
   open_target := is_open_univ,
   continuous_to_fun := (stereo_to_fun_continuous_on v).comp continuous_subtype_coe.continuous_on
