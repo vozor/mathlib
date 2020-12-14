@@ -1580,9 +1580,9 @@ purposes, `orthogonal_projection`, which removes the `is_complete`
 hypothesis and is the identity map when the subspace is not complete,
 should be used instead. -/
 def orthogonal_projection_of_complete {K : submodule 𝕜 E} (h : is_complete (K : set E)) :
-  E →L[𝕜] E :=
+  E →L[𝕜] K :=
 linear_map.mk_continuous
-  { to_fun := orthogonal_projection_fn h,
+  { to_fun := λ v, ⟨orthogonal_projection_fn h v, orthogonal_projection_fn_mem h v⟩,
     map_add' := λ x y, begin
       have hm : orthogonal_projection_fn h x + orthogonal_projection_fn h y ∈ K :=
         submodule.add_mem K (orthogonal_projection_fn_mem h x) (orthogonal_projection_fn_mem h y),
@@ -1591,7 +1591,8 @@ linear_map.mk_continuous
       { intros w hw,
         rw [add_sub_comm, inner_add_left, orthogonal_projection_fn_inner_eq_zero h _ w hw,
             orthogonal_projection_fn_inner_eq_zero h _ w hw, add_zero] },
-      rw eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero h hm ho
+      ext,
+      simp [eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero h hm ho]
     end,
     map_smul' := λ c x, begin
       have hm : c • orthogonal_projection_fn h x ∈ K :=
@@ -1599,27 +1600,27 @@ linear_map.mk_continuous
       have ho : ∀ w ∈ K, ⟪c • x - c • orthogonal_projection_fn h x, w⟫ = 0,
       { intros w hw,
         rw [←smul_sub, inner_smul_left, orthogonal_projection_fn_inner_eq_zero h _ w hw, mul_zero] },
-      rw eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero h hm ho
+      ext,
+      simp [eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero h hm ho]
     end }
   1
   (λ x, begin
     simp only [one_mul, linear_map.coe_mk],
     refine le_of_pow_le_pow 2 (norm_nonneg _) (by norm_num) _,
+    change ∥orthogonal_projection_fn h x∥ ^ 2 ≤ ∥x∥ ^ 2,
     nlinarith [orthogonal_projection_fn_norm_sq h x]
   end)
 
 /-- The orthogonal projection onto a subspace, which is expected to be
-complete.  If the subspace is not complete, this uses the identity map
+complete.  If the subspace is not complete, this uses the zero map
 instead. -/
-def orthogonal_projection (K : submodule 𝕜 E) : E →L[𝕜] E :=
-if h : is_complete (K : set E) then orthogonal_projection_of_complete h
-  else (continuous_linear_map.id 𝕜 E)
+def orthogonal_projection (K : submodule 𝕜 E) : E →L[𝕜] K :=
+if h : is_complete (K : set E) then orthogonal_projection_of_complete h else 0
 
 /-- The definition of `orthogonal_projection` using `if`. -/
 lemma orthogonal_projection_def (K : submodule 𝕜 E) :
   orthogonal_projection K =
-    if h : is_complete (K : set E) then orthogonal_projection_of_complete h
-    else (continuous_linear_map.id 𝕜 E) :=
+    if h : is_complete (K : set E) then orthogonal_projection_of_complete h else 0 :=
 rfl
 
 @[simp]
@@ -1627,23 +1628,14 @@ lemma orthogonal_projection_fn_eq {K : submodule 𝕜 E} (h : is_complete (K : s
   orthogonal_projection_fn h v = orthogonal_projection K v :=
 by { rw [orthogonal_projection_def, dif_pos h], refl }
 
-/-- The orthogonal projection is in the given subspace. -/
-lemma orthogonal_projection_mem {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
-  orthogonal_projection K v ∈ K :=
-begin
-  rw ←orthogonal_projection_fn_eq h,
-  exact orthogonal_projection_fn_mem h v
-end
-
 /-- The characterization of the orthogonal projection.  -/
 @[simp]
-lemma orthogonal_projection_inner_eq_zero (K : submodule 𝕜 E) (v : E) :
+lemma orthogonal_projection_inner_eq_zero {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
   ∀ w ∈ K, ⟪v - orthogonal_projection K v, w⟫ = 0 :=
 begin
-  simp_rw orthogonal_projection_def,
-  split_ifs,
-  { exact orthogonal_projection_fn_inner_eq_zero h v },
-  { simp },
+  intros w hw,
+  convert orthogonal_projection_fn_inner_eq_zero h v w hw,
+  simp
 end
 
 /-- The orthogonal projection is the unique point in `K` with the
@@ -1657,19 +1649,15 @@ begin
 end
 
 /-- The orthogonal projection sends elements of `K` to themselves. -/
-lemma orthogonal_projection_mem_subspace_eq_self (K : submodule 𝕜 E) {v : E} (hv : v ∈ K) :
-  orthogonal_projection K v = v :=
+lemma orthogonal_projection_mem_subspace_eq_self {K : submodule 𝕜 E} (h : is_complete (K : set E))
+  {v : E} (hv : v ∈ K) :
+  ↑(orthogonal_projection K v) = v :=
 begin
   have h_mem : v - orthogonal_projection K v ∈ K,
-  { by_cases h : is_complete (K : set E),
-    { have := orthogonal_projection_mem h v,
-      exact submodule.sub_mem K hv this },
-    { simp_rw orthogonal_projection_def,
-      rw dif_neg h,
-      simp } },
+  { exact submodule.sub_mem K hv (orthogonal_projection K v).2 },
   symmetry,
   rw [← sub_eq_zero, ← inner_self_eq_zero],
-  exact orthogonal_projection_inner_eq_zero K v _ h_mem
+  exact orthogonal_projection_inner_eq_zero h v _ h_mem
 end
 
 lemma orthogonal_projection_norm_sq (K : submodule 𝕜 E) (v : E) :
@@ -1690,7 +1678,8 @@ begin
   split_ifs,
   { apply linear_map.mk_continuous_norm_le,
     norm_num },
-  { exact continuous_linear_map.norm_id_le }
+  { simp,
+    norm_num }
 end
 
 /-- The orthogonal projection is a contraction. -/
@@ -1710,14 +1699,17 @@ lemma orthogonal_projection_norm_eq_iff {K : submodule 𝕜 E} (h : is_complete 
 begin
   split,
   { intros h',
-    convert orthogonal_projection_mem h v,
+    suffices : v = orthogonal_projection K v,
+    { rw this,
+      exact (orthogonal_projection K v).2 },
     refine eq_of_norm_sub_eq_zero _,
     refine zero_eq_mul_self.mp _,
     have := orthogonal_projection_norm_sq K v,
     rw h' at this,
     linarith },
   { intros h',
-    rw orthogonal_projection_mem_subspace_eq_self K h' }
+    have := orthogonal_projection_mem_subspace_eq_self h h',
+    exact congr_arg norm this }
 end
 
 /-- The orthogonal projection onto a complete subspace preserves the norm only of the elements in
@@ -1878,3 +1870,99 @@ begin
   exact hd.symm
 end
 end orthogonal
+
+-- /-- The orthogonal projection is in the given subspace. -/
+-- lemma orthogonal_projection_mem {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
+--   orthogonal_projection K v ∈ K :=
+-- begin
+--   rw ←orthogonal_projection_fn_eq h,
+--   exact orthogonal_projection_fn_mem h v
+-- end
+
+-- @[simp]
+-- lemma orthogonal_projection_fn_eq' {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
+--   orthogonal_projection_fn h v = orthogonal_projection_of_complete h v :=
+-- rfl
+
+-- /-- The characterization of the orthogonal projection.  -/
+-- @[simp]
+-- lemma orthogonal_projection_of_complete_inner_eq_zero {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
+--   ∀ w ∈ K, ⟪v - orthogonal_projection_of_complete h v, w⟫ = 0 :=
+-- orthogonal_projection_fn_inner_eq_zero h v
+
+-- /-- The orthogonal projection is the unique point in `K` with the
+-- orthogonality property. -/
+-- lemma eq_orthogonal_projection_of_complete_of_mem_of_inner_eq_zero {K : submodule 𝕜 E}
+--   (h : is_complete (K : set E)) {u v : E} (hvm : v ∈ K) (hvo : ∀ w ∈ K, ⟪u - v, w⟫ = 0) :
+--   v = orthogonal_projection_of_complete h u :=
+-- eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero h hvm hvo
+
+-- /-- The orthogonal projection sends elements of `K` to themselves. -/
+-- lemma orthogonal_projection_of_complete_mem_subspace_eq_self {K : submodule 𝕜 E}
+--   (h : is_complete (K : set E)) (v : K) :
+--   orthogonal_projection_of_complete h v = v :=
+-- begin
+--   ext,
+--   symmetry,
+--   rw [← sub_eq_zero, ← inner_self_eq_zero],
+--   convert orthogonal_projection_of_complete_inner_eq_zero h v _ (v - orthogonal_projection_of_complete h v).2
+-- end
+
+-- lemma orthogonal_projection_of_complete_norm_sq {K : submodule 𝕜 E} (h : is_complete (K : set E))
+--   (v : E) :
+--   ∥v∥ * ∥v∥ = ∥v - (orthogonal_projection_of_complete h v)∥ * ∥v - (orthogonal_projection_of_complete h v)∥
+--             + ∥orthogonal_projection_of_complete h v∥ * ∥orthogonal_projection_of_complete h v∥ :=
+-- orthogonal_projection_fn_norm_sq h v
+
+-- /-- The orthogonal projection has norm `≤ 1`. -/
+-- lemma orthogonal_projection_of_complete_norm_le {K : submodule 𝕜 E} (h : is_complete (K : set E)) :
+--   ∥orthogonal_projection_of_complete h∥ ≤ 1 :=
+-- begin
+--   apply linear_map.mk_continuous_norm_le,
+--   norm_num,
+-- end
+
+-- /-- The orthogonal projection is a contraction. -/
+-- lemma orthogonal_projection_of_complete_norm_le_norm_self {K : submodule 𝕜 E}
+--   (h : is_complete (K : set E))  (v : E) :
+--   ∥orthogonal_projection_of_complete h v∥ ≤ ∥v∥ :=
+-- begin
+--   have := continuous_linear_map.le_op_norm (orthogonal_projection_of_complete h) v,
+--   have := orthogonal_projection_of_complete_norm_le h,
+--   have := norm_nonneg v,
+--   nlinarith
+-- end
+
+-- /-- The orthogonal projection onto a complete subspace preserves the norm only of the elements in
+-- the subspace. -/
+-- lemma orthogonal_projection_norm_eq_iff {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
+--   ∥orthogonal_projection_of_complete h v∥ = ∥v∥ ↔ v ∈ K :=
+-- begin
+--   split,
+--   { intros h',
+--     suffices : v = orthogonal_projection_of_complete h v,
+--     { rw this,
+--       exact (orthogonal_projection_of_complete h v).2 },
+--     refine eq_of_norm_sub_eq_zero _,
+--     refine zero_eq_mul_self.mp _,
+--     have := orthogonal_projection_of_complete_norm_sq h v,
+--     rw h' at this,
+--     linarith },
+--   { intros h',
+--     have := orthogonal_projection_of_complete_mem_subspace_eq_self h ⟨v, h'⟩,
+--     simp at this,
+--     rw this,
+--     refl }
+-- end
+
+-- /-- The orthogonal projection onto a complete subspace preserves the norm only of the elements in
+-- the subspace. -/
+-- lemma orthogonal_projection_norm_lt_iff {K : submodule 𝕜 E} (h : is_complete (K : set E)) (v : E) :
+--   ∥orthogonal_projection_of_complete h v∥ < ∥v∥ ↔ v ∉ K :=
+-- begin
+--   rw ← not_congr (orthogonal_projection_norm_eq_iff h v),
+--   refine ⟨ne_of_lt, _⟩,
+--   intros h',
+--   refine (ne.le_iff_lt h').mp _,
+--   exact orthogonal_projection_of_complete_norm_le_norm_self h v,
+-- end
