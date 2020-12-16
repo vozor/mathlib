@@ -21,6 +21,19 @@ lemma pi_congr {ι} {α β : ι → Type*} (h : ∀ i, α i = β i) : (Π i, α 
 by { cases (show α = β, from funext h), refl }
 
 
+namespace set
+
+section prod
+variables {α : Type*} {β : Type*} {γ : Type*} {δ : Type*}
+variables {s s₁ s₂ : set α} {t t₁ t₂ : set β}
+
+lemma prod_subset_prod (hs : s ⊆ s₁) (ht : t ⊆ t₁) : s.prod t ⊆ s₁.prod t₁ :=
+prod_subset_prod_iff.mpr $ or.inl ⟨hs, ht⟩
+
+end prod
+
+end set
+
 namespace function
 
 variables {ι : Type*} [decidable_eq ι] {α : ι → Type*} {s : set ι} {i : ι}
@@ -488,7 +501,75 @@ end measurable_equiv
 --   exact (measurable_equiv.true_arrow (α i)).symm
 -- end
 
+open measure_theory
 
+
+section
+
+variables {α β : Type*} [measurable_space α]
+
+lemma is_measurable.Union_fintype [fintype β] {f : β → set α} (h : ∀ b, is_measurable (f b)) :
+  is_measurable (⋃ b, f b) :=
+begin
+  have := encodable.trunc_encodable_of_fintype β,
+  induction this using trunc.rec_on_subsingleton,
+  exactI is_measurable.Union h
+end
+
+lemma is_measurable.Inter_fintype [fintype β] {f : β → set α} (h : ∀ b, is_measurable (f b)) :
+  is_measurable (⋂ b, f b) :=
+is_measurable.compl_iff.1 $
+  by { rw compl_Inter, exact is_measurable.Union_fintype (λ b, (h b).compl) }
+
+end
+
+section measurable_pi
+variables {δ : Type*} {π : δ → Type*} [Π a, measurable_space (π a)]
+#print countable
+
+lemma is_measurable.pi {s : set δ} {t : Π i : δ, set (π i)} (hs : countable s)
+  (ht : ∀ i ∈ s, is_measurable (t i)) : is_measurable (s.pi t) :=
+is_measurable_pi hs ht
+
+lemma is_measurable.pi_fintype [fintype δ] {s : set δ} {t : Π i, set (π i)}
+  (ht : ∀ i ∈ s, is_measurable (t i)) : is_measurable (pi s t) :=
+begin
+  have := encodable.trunc_encodable_of_fintype δ,
+  induction this using trunc.rec_on_subsingleton,
+  exactI is_measurable.pi (countable_encodable _) ht
+end
+
+/-- The function `update f a : π a → Π a, π a` is always measurable.
+  This doesn't require `f` to be measurable.
+  This should not be confused with the statement that `update f a x` is measurable. -/
+lemma measurable_update (f : Π (a : δ), π a) {a : δ} : measurable (update f a) :=
+begin
+  apply measurable_pi_lambda,
+  intro x, by_cases hx : x = a,
+  { cases hx, convert measurable_id, ext, simp },
+  simp_rw [update_noteq hx], apply measurable_const,
+end
+
+lemma is_measurable_pi_of_nonempty [encodable δ] {t : Π i, set (π i)} (h : (pi univ t).nonempty) :
+  is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) :=
+begin
+  rcases h with ⟨f, hf⟩, refine ⟨λ hst i, _, is_measurable.pi⟩,
+  convert measurable_update f hst, rw [update_preimage_univ_pi], exact λ j _, hf j (mem_univ j)
+end
+
+lemma is_measurable_pi' [encodable δ] {t : Π i, set (π i)} :
+  is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) ∨ ∃ i, t i = ∅ :=
+begin
+  cases (pi univ t).eq_empty_or_nonempty with h h,
+  { have := univ_pi_eq_empty_iff.mp h, simp [h, univ_pi_eq_empty_iff.mp h] },
+  { simp [←not_nonempty_iff_eq_empty, univ_pi_nonempty_iff.mp h, is_measurable_pi_of_nonempty h] }
+end
+
+lemma measurable_pi {γ} [measurable_space γ] {f : γ → Π i, π i} :
+  measurable f ↔ ∀ x, measurable (λ c, f c x) :=
+⟨λ hf x, (measurable_pi_apply _).comp hf, measurable_pi_lambda f⟩
+
+end measurable_pi
 
 namespace measure_theory
 
@@ -503,12 +584,52 @@ sorry
 end outer_measure
 open outer_measure measure
 
+/-
+ FALSE IN GENERAL: `is_measurable s -> is_measurable (prod.fst '' s)`. (see Analytic sets)
+ prod_prod works sometimes for nonmeasurable sets (e.g. of reals: https://math.stackexchange.com/questions/1180475/product-of-outer-measure-equals-outer-measure-of-product)
+-/
 namespace measure
 
 variables {α β : Type*} [measurable_space α] [measurable_space β]
 variables {μ : measure α} {ν : measure β}
 
-@[simp] lemma prod_prod' [sigma_finite ν] {s : set α} {t : set β} :
+/-- A variant of `measure_eq_infi` which has a single `infi`. This is useful when applying a
+  lemma next that only works for non-empty infima. -/
+lemma measure_eq_infi' (μ : measure α) (s : set α) :
+  μ s = ⨅ t : { t // s ⊆ t ∧ is_measurable t}, μ t :=
+by simp_rw [infi_subtype, infi_and, subtype.coe_mk, ← measure_eq_infi]
+
+/-- Every set has a measurable superset. Declare this as local instance as needed. -/
+lemma nonempty_measurable_superset (s : set α) : nonempty { t // s ⊆ t ∧ is_measurable t} :=
+⟨⟨univ, subset_univ s, is_measurable.univ⟩⟩
+
+local attribute [instance] nonempty_measurable_superset
+
+lemma prod_prod_le [sigma_finite ν] {s : set α} {t : set β} :
+  μ.prod ν (s.prod t) ≤ μ s * ν t :=
+begin
+  by_cases hs0 : μ s = 0,
+  { rcases (exists_is_measurable_superset_of_measure_eq_zero hs0) with ⟨s', hs', h2s', h3s'⟩,
+    convert measure_mono (prod_subset_prod hs' (subset_univ _)),
+    simp_rw [hs0, prod_prod h2s' is_measurable.univ, h3s', zero_mul] },
+  by_cases hti : ν t = ⊤,
+  { convert le_top, simp_rw [hti, ennreal.mul_top, hs0, if_false] },
+  rw [measure_eq_infi' μ],
+  simp_rw [ennreal.infi_mul hti], refine le_infi _, rintro ⟨s', h1s', h2s'⟩,
+  rw [subtype.coe_mk],
+  by_cases ht0 : ν t = 0,
+  { rcases (exists_is_measurable_superset_of_measure_eq_zero ht0) with ⟨t', ht', h2t', h3t'⟩,
+    convert measure_mono (prod_subset_prod (subset_univ _) ht'),
+    simp_rw [ht0, prod_prod is_measurable.univ h2t', h3t', mul_zero] },
+  by_cases hsi : μ s' = ⊤,
+  { convert le_top, simp_rw [hsi, ennreal.top_mul, ht0, if_false] },
+  rw [measure_eq_infi' ν],
+  simp_rw [ennreal.mul_infi hsi], refine le_infi _, rintro ⟨t', h1t', h2t'⟩,
+  convert measure_mono (prod_subset_prod h1s' h1t'),
+  simp [prod_prod h2s' h2t'],
+end
+
+lemma prod_prod' [sigma_finite ν] {s : set α} {t : set β} :
   μ.prod ν (s.prod t) = μ s * ν t :=
 begin
   apply le_antisymm,
@@ -520,47 +641,13 @@ begin
   --   simp [prod_prod h2s' h2t'], repeat {sorry} },
   sorry,
   { rw [@measure_eq_infi _ _ (μ.prod ν)], refine le_binfi (λ st hst, le_infi (λ h2st, _)),
-    have : is_measurable (prod.fst '' st), sorry,
-     }
+
+    sorry }
 end
 
 end measure
 
-section measurable_pi
-variables {α : Type*} {β : α → Type*} [Πa, measurable_space (β a)]
 
-lemma is_measurable.pi [encodable α] {t : Π i, set (β i)} (hs : ∀ i, is_measurable (t i)) :
-  is_measurable (pi univ t) :=
-by { convert is_measurable.Inter (λ i, measurable_pi_apply _ (hs i) : _), simp [pi_def] }
-
-lemma measurable_update (f : Π (a : α), β a) {i : α} : measurable (update f i) :=
-begin
-  apply measurable_pi_lambda,
-  intro j, by_cases hj : j = i,
-  { cases hj, convert measurable_id, ext, simp },
-  simp_rw [update_noteq hj], apply measurable_const,
-end
-
-lemma is_measurable_pi_of_nonempty [encodable α] {t : Π i, set (β i)} (h : (pi univ t).nonempty) :
-  is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) :=
-begin
-  rcases h with ⟨f, hf⟩, refine ⟨λ hst i, _, is_measurable.pi⟩,
-  convert measurable_update f hst, rw [update_preimage_univ_pi], exact λ j _, hf j (mem_univ j)
-end
-
-lemma is_measurable_pi [encodable α] {t : Π i, set (β i)} :
-  is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) ∨ ∃ i, t i = ∅ :=
-begin
-  cases (pi univ t).eq_empty_or_nonempty with h h,
-  { have := univ_pi_eq_empty_iff.mp h, simp [h, univ_pi_eq_empty_iff.mp h] },
-  { simp [←not_nonempty_iff_eq_empty, univ_pi_nonempty_iff.mp h, is_measurable_pi_of_nonempty h] }
-end
-
-lemma measurable_pi {γ} [measurable_space γ] {f : γ → Π i, β i} :
-  measurable f ↔ ∀ x, measurable (λ c, f c x) :=
-⟨λ hf x, (measurable_pi_apply _).comp hf, measurable_pi_lambda f⟩
-
-end measurable_pi
 
 section measure_pi
 
@@ -723,141 +810,3 @@ end measure_pi
 end measure_theory
 
 open measure_theory measure_theory.outer_measure
-
--- namespace relative
-
--- namespace measure_theory
--- section measure_pi
-
--- variables {ι : Type*} {α : ι → Type*} {m : Π i, outer_measure (α i)} (t : finset ι)
-
--- /-- An upper bound for the measure in a product space.
---   It is defined to be the product of the measures of all its projections.
---   For boxes it should be equal to the correct measure. -/
--- def pi_premeasure (m : Π i, outer_measure (α i)) (s : set (Π i, α i)) : ennreal :=
--- ∏ i in t, m i (eval i '' s)
-
--- variable {t}
-
--- @[simp] lemma pi_premeasure_def {s : set (Π i, α i)} :
---   pi_premeasure t m s = ∏ i in t, m i (eval i '' s) := rfl
-
--- lemma pi_premeasure_pi {s : Π i, set (α i)} (hs : (pi univ s).nonempty) :
---   pi_premeasure t m (pi t s) = ∏ i in t, m i (s i) :=
--- by sorry
-
--- lemma pi_premeasure_pi' [nonempty ι] {s : Π i, set (α i)} :
---   pi_premeasure t m (pi t s) = ∏ i in t, m i (s i) :=
--- begin
---   cases (pi univ s).eq_empty_or_nonempty with h h,
---   { rcases univ_pi_eq_empty_iff.mp h with ⟨i, hi⟩,
---     have : ∃ i, m i (s i) = 0 := ⟨i, by simp [hi]⟩,
---     sorry
---     --simpa [h, finset.card_univ, zero_pow (fintype.card_pos_iff.mpr _),
---       -- @eq_comm _ (0 : ennreal), finset.prod_eq_zero_iff]
---       },
---   { simp [h], sorry }
--- end
-
--- lemma pi_premeasure_pi_mono {s s' : set (Π i, α i)} (h : s ⊆ s') :
---   pi_premeasure t m s ≤ pi_premeasure t m s' :=
--- finset.prod_le_prod' (λ i _, (m i).mono' (image_subset _ h))
-
--- lemma pi_premeasure_pi_eval [nonempty ι] {s : set (Π i, α i)} :
---   pi_premeasure t m (pi t (λ i, eval i '' s)) = pi_premeasure t m s :=
--- by simp [pi_premeasure_pi']
-
--- variable (t)
--- namespace outer_measure
--- /-- `outer_measure.pi m` is the finite product of the outer measures `{m i | i : ι}`.
---   It is defined to be the maximal outer measure `n` with the property that
---   `n (pi univ s) ≤ ∏ i, m i (s i)`, where `pi univ s` is the product of the sets
---   `{ s i | i : ι }`. -/
--- protected def pi (m : Π i, outer_measure (α i)) : outer_measure (Π i, α i) :=
--- bounded_by (pi_premeasure t m)
-
--- variable {t}
-
--- lemma pi_pi_le (m : Π i, outer_measure (α i)) (s : Π i, set (α i)) :
---   outer_measure.pi t m (pi t s) ≤ ∏ i in t, m i (s i) :=
--- sorry
--- -- by { cases (pi univ s).eq_empty_or_nonempty with h h, simp [h],
--- --      exact (bounded_by_le _).trans_eq (pi_premeasure_pi h) }
-
--- lemma le_pi {m : Π i, outer_measure (α i)} {n : outer_measure (Π i, α i)} :
---   n ≤ outer_measure.pi t m ↔ ∀ (s : Π i, set (α i)), (pi univ s).nonempty →
---     n (pi t s) ≤ ∏ i in t, m i (s i) :=
--- begin
---   sorry
---   -- rw [outer_measure.pi, le_bounded_by'], split,
---   -- { intros h s hs, refine (h _ hs).trans_eq (pi_premeasure_pi hs)  },
---   -- { intros h s hs, refine le_trans (n.mono $ subset_pi_eval_image univ s) (h _ _),
---   --   simp [univ_pi_nonempty_iff, hs] }
--- end
-
--- -- lemma pi_pi_false [encodable ι] (s : Π i, set (α i))
--- --   (h2s : (pi univ s).nonempty) : outer_measure.pi m (pi univ s) = ∏ i, m i (s i) :=
--- -- begin
--- --   simp_rw [← pi_premeasure_pi h2s],
--- --   refine le_antisymm (bounded_by_le _) _,
--- --   refine le_binfi _, dsimp only, intros t ht,
--- --   sorry
--- --   -- refine le_trans _ (ennreal.tsum_le_tsum $ λ i, _),
--- -- end
--- end outer_measure
-
--- namespace measure
-
--- variables [Π i, measurable_space (α i)] (μ : Π i, measure (α i))
-
--- protected lemma caratheodory {α} [measurable_space α] (μ : measure α) {s t : set α}
---   (hs : is_measurable s) : μ (t ∩ s) + μ (t \ s) = μ t :=
--- (le_to_outer_measure_caratheodory μ s hs t).symm
-
--- lemma pi_caratheodory :
---   measurable_space.pi ≤ (outer_measure.pi t (λ i, (μ i).to_outer_measure)).caratheodory :=
--- begin
---   refine supr_le _, intros i s hs,
---   rw [measurable_space.comap] at hs, rcases hs with ⟨s, hs, rfl⟩,
---   apply bounded_by_caratheodory, intro u,
---   simp_rw [pi_premeasure_def],
---   refine finset.prod_add_prod_le' (sorry : i ∈ t) _ _ _,
---   { simp [image_inter_preimage, image_diff_preimage, (μ i).caratheodory hs, le_refl] },
---   { rintro j - hj, apply mono', apply image_subset, apply inter_subset_left },
---   { rintro j - hj, apply mono', apply image_subset, apply diff_subset }
--- end
--- variable (t)
-
--- /-- `measure.pi μ` is the finite product of the measures `{μ i | i : ι}`.
---   It is defined to be the maximal product measure, i.e.
---   the maximal measure `n` with the property that `ν (pi univ s) = ∏ i, μ i (s i)`,
---   where `pi univ s` is the product of the sets `{ s i | i : ι }`. -/
--- protected def pi : measure (Π i, α i) :=
--- to_measure (outer_measure.pi t (λ i, (μ i).to_outer_measure)) (pi_caratheodory t μ)
-
--- variable {t}
-
--- lemma pi_pi [fintype ι] [encodable ι] [∀ i, sigma_finite (μ i)] (s : Π i, set (α i))
---   (h1s : ∀ i ∈ (t : set ι), is_measurable (s i))
---   (h2s : (pi (t : set ι) s).nonempty) : measure.pi t μ (pi t s) = ∏ i in t, μ i (s i) :=
--- begin
---   rw [measure.pi, to_measure_apply _ _ (is_measurable_pi t.countable_to_set h1s)],
---   refine le_antisymm (outer_measure.pi_pi_le _ _) _,
---   have : ∃ (ν : measure (Π i, α i)),
---   sorry
---   -- rcases fintype.exists_univ_list ι with ⟨l, h1l, h2l⟩,
---   -- have := l.foldr _ _,
---   -- generalize' hn : fintype.card ι = n,
---   -- simp_rw [← to_outer_measure_apply, ← pi_premeasure_pi h2s],
---   -- refine le_antisymm (bounded_by_le _) _,
---   -- refine le_binfi _, dsimp only, intros t ht,
--- end
-
--- end measure
-
--- end measure_pi
-
-
--- end relative
-
--- end measure_theory
