@@ -14,16 +14,28 @@ In this file we define and prove properties about finite products of measures
 ## Main definition
 
 * `measure_theory.measure.pi`: The product of finitely many measures.
+  Given `μ : Π i : ι, measure (α i)` for `[fintype ι]` it has type `measure (Π i : ι, α i)`.
 
 ## Implementation Notes
 
-We first define a product measure on an encodable finite type, which is roughly a finite ordered
-type. We do this via an equivalence of it to the type `list.tprod` which is an iterated binary
-product. The product on this type is simply defined by iterating `measure_theory.measure.prod`.
+We define `measure_theory.outer_measure.pi`, the product of finitely many outer measures, as the
+maximal outer measure `n` with the property that `n (pi univ s) ≤ ∏ i, m i (s i)`,
+where `pi univ s` is the product of the sets `{ s i | i : ι }`.
 
-If we work with a finite type that is not encodable, we
-We define
-Then we define the product measure as the maximal product measure, that is, the
+We then show that this induces a product of measures, called `measure_theory.measure.pi`.
+For a collection of σ-finite measures `μ` and a collection of measurable sets `s` we show that
+`measure.pi μ (pi univ s) = ∏ i, m i (s i)`. To do this, we follow the following steps:
+* We know that there is some ordering on `ι`, given by an element of `[encodable ι]`.
+* Using this, we have an equivalence `measurable_equiv.pi_measurable_equiv_tprod` between
+  `Π ι, α i` and an iterated product of `α i`, called `list.tprod α l` for some list `l`.
+* On this iterated product we can easily define a product measure `measure_theory.measure.tprod`
+  by iterating `measure_theory.measure.prod`
+* Using the previous two steps we construct `measure_theory.measure.pi'` on `Π ι, α i` for encodable
+  `ι`.
+* We know that `measure_theory.measure.pi'` sends products of sets to products of measures, and
+  since `measure_theory.measure.pi` is the maximal such measure (or at least, it comes from an outer
+  measure which is the maximal such outer measure), we get the same rule for
+  `measure_theory.measure.pi`.
 
 ## Tags
 
@@ -101,34 +113,76 @@ namespace measure
 
 variables [Π i, measurable_space (α i)] (μ : Π i, measure (α i))
 
+section tprod
+
+open list
+variables {δ : Type*} {π : δ → Type*} [∀ x, measurable_space (π x)]
+
+/-- A product of measures in `tprod α l`. -/
+-- for some reason the equation compiler doesn't like this definition
+protected def tprod (l : list δ) (μ : Π i, measure (π i)) : measure (tprod π l) :=
+by { induction l with i l ih, exact dirac punit.star, exact (μ i).prod ih }
+
+@[simp] lemma tprod_nil (μ : Π i, measure (π i)) : measure.tprod [] μ = dirac punit.star := rfl
+
+@[simp] lemma tprod_cons (i : δ) (l : list δ) (μ : Π i, measure (π i)) :
+  measure.tprod (i :: l) μ = (μ i).prod (measure.tprod l μ) := rfl
+
+instance sigma_finite_tprod (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_finite (μ i)] :
+  sigma_finite (measure.tprod l μ) :=
+begin
+  induction l with i l ih,
+  { rw [tprod_nil], apply_instance },
+  { rw [tprod_cons], resetI, apply_instance }
+end
+
+lemma tprod_tprod (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_finite (μ i)]
+  {s : Π i, set (π i)} (hs : ∀ i, is_measurable (s i)) :
+  measure.tprod l μ (set.tprod l s) = (l.map (λ i, (μ i) (s i))).prod :=
+begin
+  induction l with i l ih, { simp },
+  simp_rw [tprod_cons, set.tprod, prod_prod (hs i) (is_measurable.tprod l hs), map_cons,
+    prod_cons, ih]
+end
+
+lemma tprod_tprod_le (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_finite (μ i)]
+  (s : Π i, set (π i)) : measure.tprod l μ (set.tprod l s) ≤ (l.map (λ i, (μ i) (s i))).prod :=
+begin
+  induction l with i l ih, { simp [le_refl] },
+  simp_rw [tprod_cons, set.tprod, map_cons, prod_cons],
+  refine prod_prod_le.trans _, exact ennreal.mul_left_mono ih
+end
+
+end tprod
 
 section encodable
 
-open list
+open list measurable_equiv
 variables [encodable ι]
 
 /-- The product measure on an encodable finite type, defined by mapping `measure.tprod` along the
-  equivalence `measurable_equiv.pi_measurable_equiv_tprod`. -/
-def encodable_pi : measure (Π i, α i) :=
+  equivalence `measurable_equiv.pi_measurable_equiv_tprod`.
+  The definition `measure_theory.measure.pi` should be used instead of this one. -/
+def pi' : measure (Π i, α i) :=
 measure.map (tprod.elim' encodable.mem_sorted_univ) (measure.tprod (encodable.sorted_univ ι) μ)
 
-lemma encodable_pi_pi [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)}
-  (hs : ∀ i, is_measurable (s i)) : measure.encodable_pi μ (pi univ s) = ∏ i, μ i (s i) :=
+lemma pi'_pi [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)}
+  (hs : ∀ i, is_measurable (s i)) : measure.pi' μ (pi univ s) = ∏ i, μ i (s i) :=
 begin
   have hl := λ i : ι, encodable.mem_sorted_univ i,
   have hnd := @encodable.sorted_univ_nodup ι _ _,
-  rw [encodable_pi, map_apply (measurable_tprod_elim' hl) (is_measurable.pi_fintype (λ i _, hs i)),
+  rw [pi', map_apply (measurable_tprod_elim' hl) (is_measurable.pi_fintype (λ i _, hs i)),
     elim_preimage_pi hnd, tprod_tprod _ μ hs, ← list.prod_to_finset _ hnd],
   congr' with i, simp [hl]
 end
 
-lemma encodable_pi_pi_le [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)} :
-  encodable_pi μ (pi univ s) ≤ ∏ i, μ i (s i) :=
+lemma pi'_pi_le [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)} :
+  pi' μ (pi univ s) ≤ ∏ i, μ i (s i) :=
 begin
   have hl := λ i : ι, encodable.mem_sorted_univ i,
   have hnd := @encodable.sorted_univ_nodup ι _ _,
-  apply ((measurable_equiv.pi_measurable_equiv_tprod hnd hl).symm.map_apply (pi univ s)).trans_le,
-  dsimp [measurable_equiv.pi_measurable_equiv_tprod, tprod.pi_equiv_tprod], --nonterminal
+  apply ((pi_measurable_equiv_tprod hnd hl).symm.map_apply (pi univ s)).trans_le,
+  dsimp only [pi_measurable_equiv_tprod, tprod.pi_equiv_tprod, coe_symm_mk, coe_fn_symm_mk],
   rw [elim_preimage_pi hnd],
   refine (tprod_tprod_le _ _ _).trans_eq _,
   rw [← list.prod_to_finset _ hnd],
@@ -164,13 +218,13 @@ begin
   resetI, refine le_antisymm _ _,
   { rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i))],
     apply outer_measure.pi_pi_le },
-  { rw [← encodable_pi_pi], swap, exact h1s,
+  { rw [← pi'_pi], swap, exact h1s,
     simp_rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i)),
       ← to_outer_measure_apply],
-    suffices : (encodable_pi μ).to_outer_measure ≤ outer_measure.pi (λ i, (μ i).to_outer_measure),
+    suffices : (pi' μ).to_outer_measure ≤ outer_measure.pi (λ i, (μ i).to_outer_measure),
     { exact this _ },
     clear h1s h2s s, rw [outer_measure.le_pi], intros s hs,
-    simp_rw [to_outer_measure_apply], exact encodable_pi_pi_le μ }
+    simp_rw [to_outer_measure_apply], exact pi'_pi_le μ }
 end
 
 end measure
