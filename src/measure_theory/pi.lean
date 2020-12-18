@@ -150,7 +150,7 @@ lemma tprod_tprod_le (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_fin
 begin
   induction l with i l ih, { simp [le_refl] },
   simp_rw [tprod_cons, set.tprod, map_cons, prod_cons],
-  refine prod_prod_le.trans _, exact ennreal.mul_left_mono ih
+  refine (prod_prod_le _ _).trans _, exact ennreal.mul_left_mono ih
 end
 
 end tprod
@@ -182,7 +182,7 @@ begin
   have hl := λ i : ι, encodable.mem_sorted_univ i,
   have hnd := @encodable.sorted_univ_nodup ι _ _,
   apply ((pi_measurable_equiv_tprod hnd hl).symm.map_apply (pi univ s)).trans_le,
-  dsimp only [pi_measurable_equiv_tprod, tprod.pi_equiv_tprod, coe_symm_mk, coe_fn_symm_mk],
+  dsimp only [pi_measurable_equiv_tprod, tprod.pi_equiv_tprod, coe_symm_mk, equiv.coe_fn_symm_mk],
   rw [elim_preimage_pi hnd],
   refine (tprod_tprod_le _ _ _).trans_eq _,
   rw [← list.prod_to_finset _ hnd],
