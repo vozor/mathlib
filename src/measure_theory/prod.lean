@@ -822,13 +822,10 @@ variables {δ : Type*} {π : δ → Type*} [∀ x, measurable_space (π x)]
 protected def tprod (l : list δ) (μ : Π i, measure (π i)) : measure (tprod π l) :=
 by { induction l with i l ih, exact dirac punit.star, exact (μ i).prod ih }
 
-@[simp] lemma tprod_nil (μ : Π i, measure (π i)) :
-  measure.tprod [] μ = dirac punit.star :=
-rfl
+@[simp] lemma tprod_nil (μ : Π i, measure (π i)) : measure.tprod [] μ = dirac punit.star := rfl
 
 @[simp] lemma tprod_cons (i : δ) (l : list δ) (μ : Π i, measure (π i)) :
-  measure.tprod (i :: l) μ = (μ i).prod (measure.tprod l μ) :=
-rfl
+  measure.tprod (i :: l) μ = (μ i).prod (measure.tprod l μ) := rfl
 
 instance sigma_finite_tprod (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_finite (μ i)] :
   sigma_finite (measure.tprod l μ) :=
@@ -848,8 +845,7 @@ begin
 end
 
 lemma tprod_tprod_le (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_finite (μ i)]
-  (s : Π i, set (π i)) :
-  measure.tprod l μ (set.tprod l s) ≤ (l.map (λ i, (μ i) (s i))).prod :=
+  (s : Π i, set (π i)) : measure.tprod l μ (set.tprod l s) ≤ (l.map (λ i, (μ i) (s i))).prod :=
 begin
   induction l with i l ih, { simp [le_refl] },
   simp_rw [tprod_cons, set.tprod, map_cons, prod_cons],

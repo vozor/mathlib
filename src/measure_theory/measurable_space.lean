@@ -815,7 +815,7 @@ begin
   { exact (measurable_pi_apply i).prod_mk ih }
 end
 
-lemma measurable_tprod_elim : ∀ {l : list δ} {i} (hi : i ∈ l),
+lemma measurable_tprod_elim : ∀ {l : list δ} {i : δ} (hi : i ∈ l),
   measurable (λ (v : tprod π l), v.elim hi)
 | (i :: is) j hj := begin
   by_cases hji : j = i,
@@ -1103,6 +1103,13 @@ def Pi_congr_right (e : Π a, π a ≃ᵐ π' a) : (Π a, π a) ≃ᵐ (Π a, π
     measurable_pi_lambda _ (λ i, (e i).measurable_to_fun.comp (measurable_pi_apply i)),
   measurable_inv_fun :=
     measurable_pi_lambda _ (λ i, (e i).measurable_inv_fun.comp (measurable_pi_apply i)) }
+
+/-- Pi-types are measurably equivalent to iterated products. -/
+noncomputable def pi_measurable_equiv_tprod {l : list δ'} (hnd : l.nodup) (h : ∀ i, i ∈ l) :
+  (Π i, π i) ≃ᵐ list.tprod π l :=
+{ to_equiv := list.tprod.pi_equiv_tprod hnd h,
+  measurable_to_fun := measurable_tprod_mk l,
+  measurable_inv_fun := measurable_tprod_elim' h }
 
 end measurable_equiv
 

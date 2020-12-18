@@ -1,0 +1,178 @@
+/-
+Copyright (c) 2020 Floris van Doorn. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Floris van Doorn
+-/
+import measure_theory.prod
+
+/-!
+# Product measures
+
+In this file we define and prove properties about finite products of measures
+(and at some point, countable products of measures).
+
+## Main definition
+
+* `measure_theory.measure.pi`: The product of finitely many measures.
+
+## Implementation Notes
+
+We first define a product measure on an encodable finite type, which is roughly a finite ordered
+type. We do this via an equivalence of it to the type `list.tprod` which is an iterated binary
+product. The product on this type is simply defined by iterating `measure_theory.measure.prod`.
+
+If we work with a finite type that is not encodable, we
+We define
+Then we define the product measure as the maximal product measure, that is, the
+
+## Tags
+
+finitary product measure
+
+-/
+
+noncomputable theory
+open function set measure_theory.outer_measure
+open_locale classical big_operators
+
+namespace measure_theory
+
+variables {ι : Type*} [fintype ι] {α : ι → Type*} {m : Π i, outer_measure (α i)}
+
+/-- An upper bound for the measure in a finite product space.
+  It is defined to by taking the image of the set under all projections, and taking the product
+  of the measures of these images.
+  For measurable boxes it is equal to the correct measure. -/
+@[simp] def pi_premeasure (m : Π i, outer_measure (α i)) (s : set (Π i, α i)) : ennreal :=
+∏ i, m i (eval i '' s)
+
+lemma pi_premeasure_pi {s : Π i, set (α i)} (hs : (pi univ s).nonempty) :
+  pi_premeasure m (pi univ s) = ∏ i, m i (s i) :=
+by simp [hs]
+
+lemma pi_premeasure_pi' [nonempty ι] {s : Π i, set (α i)} :
+  pi_premeasure m (pi univ s) = ∏ i, m i (s i) :=
+begin
+  cases (pi univ s).eq_empty_or_nonempty with h h,
+  { rcases univ_pi_eq_empty_iff.mp h with ⟨i, hi⟩,
+    have : ∃ i, m i (s i) = 0 := ⟨i, by simp [hi]⟩,
+    simpa [h, finset.card_univ, zero_pow (fintype.card_pos_iff.mpr _inst_2),
+      @eq_comm _ (0 : ennreal), finset.prod_eq_zero_iff] },
+  { simp [h] }
+end
+
+lemma pi_premeasure_pi_mono {s t : set (Π i, α i)} (h : s ⊆ t) :
+  pi_premeasure m s ≤ pi_premeasure m t :=
+finset.prod_le_prod' (λ i _, (m i).mono' (image_subset _ h))
+
+lemma pi_premeasure_pi_eval [nonempty ι] {s : set (Π i, α i)} :
+  pi_premeasure m (pi univ (λ i, eval i '' s)) = pi_premeasure m s :=
+by simp [pi_premeasure_pi']
+
+namespace outer_measure
+
+/-- `outer_measure.pi m` is the finite product of the outer measures `{m i | i : ι}`.
+  It is defined to be the maximal outer measure `n` with the property that
+  `n (pi univ s) ≤ ∏ i, m i (s i)`, where `pi univ s` is the product of the sets
+  `{ s i | i : ι }`. -/
+protected def pi (m : Π i, outer_measure (α i)) : outer_measure (Π i, α i) :=
+bounded_by (pi_premeasure m)
+
+lemma pi_pi_le (m : Π i, outer_measure (α i)) (s : Π i, set (α i)) :
+  outer_measure.pi m (pi univ s) ≤ ∏ i, m i (s i) :=
+by { cases (pi univ s).eq_empty_or_nonempty with h h, simp [h],
+     exact (bounded_by_le _).trans_eq (pi_premeasure_pi h) }
+
+
+lemma le_pi {m : Π i, outer_measure (α i)} {n : outer_measure (Π i, α i)} :
+  n ≤ outer_measure.pi m ↔ ∀ (s : Π i, set (α i)), (pi univ s).nonempty →
+    n (pi univ s) ≤ ∏ i, m i (s i) :=
+begin
+  rw [outer_measure.pi, le_bounded_by'], split,
+  { intros h s hs, refine (h _ hs).trans_eq (pi_premeasure_pi hs) },
+  { intros h s hs, refine le_trans (n.mono $ subset_pi_eval_image univ s) (h _ _),
+    simp [univ_pi_nonempty_iff, hs] }
+end
+
+end outer_measure
+
+
+namespace measure
+
+variables [Π i, measurable_space (α i)] (μ : Π i, measure (α i))
+
+
+section encodable
+
+open list
+variables [encodable ι]
+
+/-- The product measure on an encodable finite type, defined by mapping `measure.tprod` along the
+  equivalence `measurable_equiv.pi_measurable_equiv_tprod`. -/
+def encodable_pi : measure (Π i, α i) :=
+measure.map (tprod.elim' encodable.mem_sorted_univ) (measure.tprod (encodable.sorted_univ ι) μ)
+
+lemma encodable_pi_pi [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)}
+  (hs : ∀ i, is_measurable (s i)) : measure.encodable_pi μ (pi univ s) = ∏ i, μ i (s i) :=
+begin
+  have hl := λ i : ι, encodable.mem_sorted_univ i,
+  have hnd := @encodable.sorted_univ_nodup ι _ _,
+  rw [encodable_pi, map_apply (measurable_tprod_elim' hl) (is_measurable.pi_fintype (λ i _, hs i)),
+    elim_preimage_pi hnd, tprod_tprod _ μ hs, ← list.prod_to_finset _ hnd],
+  congr' with i, simp [hl]
+end
+
+lemma encodable_pi_pi_le [∀ i, sigma_finite (μ i)] {s : Π i, set (α i)} :
+  encodable_pi μ (pi univ s) ≤ ∏ i, μ i (s i) :=
+begin
+  have hl := λ i : ι, encodable.mem_sorted_univ i,
+  have hnd := @encodable.sorted_univ_nodup ι _ _,
+  apply ((measurable_equiv.pi_measurable_equiv_tprod hnd hl).symm.map_apply (pi univ s)).trans_le,
+  dsimp [measurable_equiv.pi_measurable_equiv_tprod, tprod.pi_equiv_tprod], --nonterminal
+  rw [elim_preimage_pi hnd],
+  refine (tprod_tprod_le _ _ _).trans_eq _,
+  rw [← list.prod_to_finset _ hnd],
+  congr' with i, simp [hl]
+end
+
+end encodable
+
+lemma pi_caratheodory :
+  measurable_space.pi ≤ (outer_measure.pi (λ i, (μ i).to_outer_measure)).caratheodory :=
+begin
+  refine supr_le _, intros i s hs,
+  rw [measurable_space.comap] at hs, rcases hs with ⟨s, hs, rfl⟩,
+  apply bounded_by_caratheodory, intro t,
+  simp_rw [pi_premeasure],
+  refine finset.prod_add_prod_le' (finset.mem_univ i) _ _ _,
+  { simp [image_inter_preimage, image_diff_preimage, (μ i).caratheodory hs, le_refl] },
+  { rintro j - hj, apply mono', apply image_subset, apply inter_subset_left },
+  { rintro j - hj, apply mono', apply image_subset, apply diff_subset }
+end
+
+/-- `measure.pi μ` is the finite product of the measures `{μ i | i : ι}`.
+  It is defined to be measure corresponding to `measure_theory.outer_measure.pi`. -/
+protected def pi : measure (Π i, α i) :=
+to_measure (outer_measure.pi (λ i, (μ i).to_outer_measure)) (pi_caratheodory μ)
+
+lemma pi_pi [∀ i, sigma_finite (μ i)] (s : Π i, set (α i))
+  (h1s : ∀ i, is_measurable (s i))
+  (h2s : (pi univ s).nonempty) : measure.pi μ (pi univ s) = ∏ i, μ i (s i) :=
+begin
+  have := encodable.trunc_encodable_of_fintype ι,
+  induction this using trunc.rec_on_subsingleton,
+  resetI, refine le_antisymm _ _,
+  { rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i))],
+    apply outer_measure.pi_pi_le },
+  { rw [← encodable_pi_pi], swap, exact h1s,
+    simp_rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i)),
+      ← to_outer_measure_apply],
+    suffices : (encodable_pi μ).to_outer_measure ≤ outer_measure.pi (λ i, (μ i).to_outer_measure),
+    { exact this _ },
+    clear h1s h2s s, rw [outer_measure.le_pi], intros s hs,
+    simp_rw [to_outer_measure_apply], exact encodable_pi_pi_le μ }
+end
+
+end measure
+
+end measure_theory
