@@ -854,7 +854,7 @@ lemma tprod_tprod_le (l : list δ) (μ : Π i, measure (π i)) [∀ i, sigma_fin
 begin
   induction l with i l ih, { simp [le_refl] },
   simp_rw [tprod_cons, set.tprod, map_cons, prod_cons],
-  refine prod_prod_le
+  refine prod_prod_le.trans _, exact ennreal.mul_left_mono ih
 end
 
 end measure
