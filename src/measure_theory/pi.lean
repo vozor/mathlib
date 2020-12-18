@@ -13,7 +13,7 @@ In this file we define and prove properties about finite products of measures
 
 ## Main definition
 
-* `measure_theory.measure.pi`: The product of finitely many measures.
+* `measure_theory.measure.pi`: The product of finitely many σ-finite measures.
   Given `μ : Π i : ι, measure (α i)` for `[fintype ι]` it has type `measure (Π i : ι, α i)`.
 
 ## Implementation Notes
