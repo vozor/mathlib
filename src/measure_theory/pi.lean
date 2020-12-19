@@ -210,20 +210,19 @@ protected def pi : measure (Π i, α i) :=
 to_measure (outer_measure.pi (λ i, (μ i).to_outer_measure)) (pi_caratheodory μ)
 
 lemma pi_pi [∀ i, sigma_finite (μ i)] (s : Π i, set (α i))
-  (h1s : ∀ i, is_measurable (s i))
-  (h2s : (pi univ s).nonempty) : measure.pi μ (pi univ s) = ∏ i, μ i (s i) :=
+  (hs : ∀ i, is_measurable (s i)) : measure.pi μ (pi univ s) = ∏ i, μ i (s i) :=
 begin
   have := encodable.trunc_encodable_of_fintype ι,
   induction this using trunc.rec_on_subsingleton,
   resetI, refine le_antisymm _ _,
-  { rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i))],
+  { rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, hs i))],
     apply outer_measure.pi_pi_le },
-  { rw [← pi'_pi], swap, exact h1s,
-    simp_rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, h1s i)),
+  { rw [← pi'_pi], swap, exact hs,
+    simp_rw [measure.pi, to_measure_apply _ _ (is_measurable.pi_fintype (λ i _, hs i)),
       ← to_outer_measure_apply],
     suffices : (pi' μ).to_outer_measure ≤ outer_measure.pi (λ i, (μ i).to_outer_measure),
     { exact this _ },
-    clear h1s h2s s, rw [outer_measure.le_pi], intros s hs,
+    clear hs s, rw [outer_measure.le_pi], intros s hs,
     simp_rw [to_outer_measure_apply], exact pi'_pi_le μ }
 end
 
