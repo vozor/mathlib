@@ -63,6 +63,7 @@ by simp [dist_eq_norm]
 lemma inner_product_space.mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
 by simp [dist_eq_norm]
 
+
 end to_inner_prod
 
 
@@ -104,6 +105,44 @@ variables (v : E)
 
 open inner_product_space submodule
 
+
+lemma sphere_inter_hyperplane'' {v x : E} (hv : ∥v∥ = 1) {hx : ∥x∥ = 1}
+  (hxv : ↑(orthogonal_projection (submodule.span ℝ {v}) x) = v) :
+  x = v :=
+begin
+  have : x ∈ span ℝ {v},
+  { rw ← orthogonal_projection_norm_eq_iff x,
+    rw hx,
+    convert congr_arg norm hxv,
+    rw hv },
+  convert (orthogonal_projection_mem_subspace_eq_self this).symm,
+  exact hxv.symm
+end
+
+lemma abs_inner_eq_norm_iff' (x y : E) (hx0 : x ≠ 0) (hy0 : y ≠ 0):
+  ⟪x, y⟫_ℝ = ∥x∥ * ∥y∥ ↔ ∃ (r : ℝ), 0 < r ∧ y = r • x :=
+begin
+  sorry
+end
+
+example {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) (hxv : x ≠ v) :
+  ⟪v, x⟫_ℝ < 1 :=
+begin
+  -- revert hxv,
+  -- contrapose!,
+  -- intros hxv',
+  have : 0 < ∥x∥ := by { rw hx, norm_num },
+  have hx' : x ≠ 0 := norm_pos_iff.mp this,
+  have : 0 < ∥v∥ := by { rw hv, norm_num },
+  have hv' : v ≠ 0 := norm_pos_iff.mp this,
+  have := mt (abs_inner_eq_norm_iff' x v hx' hv').mp,
+  rw hv at this,
+  rw hx at this,
+  simp at this,
+  admit,
+end
+
+
 def orthog : submodule ℝ E := (span ℝ {v}).orthogonal
 
 lemma prod_zero_left {w : E} (hw : w ∈ orthog v) : ⟪w, v⟫_ℝ = 0 :=
@@ -112,16 +151,16 @@ inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma prod_zero_right {w : E} (hw : w ∈ orthog v) : ⟪v, w⟫_ℝ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
-def proj : E →L[ℝ] (span ℝ {v} : submodule ℝ E) :=
+abbreviation proj : E →L[ℝ] (span ℝ {v} : submodule ℝ E) :=
 orthogonal_projection (span ℝ {v})
 
-def projR : E →L[ℝ] ℝ :=
+abbreviation projR : E →L[ℝ] ℝ :=
 (is_bounded_bilinear_map_inner.is_bounded_linear_map_right v).to_continuous_linear_map
 
-def proj' : E →L[ℝ] (orthog v) :=
+abbreviation proj' : E →L[ℝ] (orthog v) :=
 orthogonal_projection_compl (span ℝ {v})
 
-lemma projR_eq (w : E) : (projR v w) • v = proj v w := sorry
+lemma projR_eq (w : E) : (projR v w) • v = orthogonal_projection (span ℝ {v}) w := sorry
 
 -- def in_sphere {v} (hv : ∥v∥ = 1) : sphere (0:E) 1 :=
 -- ⟨v, (inner_product_space.mem_sphere_zero ℝ).mpr hv⟩
@@ -133,8 +172,7 @@ begin
   { ext,
     exact this },
   have h_proj : (orthogonal_projection (span ℝ {v})) ↑x = ⟨v, mem_span_singleton_self v⟩,
-  { rw ← proj,
-    ext,
+  { ext,
     rw ← projR_eq,
     rw hx,
     simp },
@@ -269,9 +307,7 @@ begin
   { rw add_comm,
     convert (sum_proj' ↑x).symm,
     simp [a],
-    rw projR_eq,
-    simp [proj],
-    apply_instance },
+    rw projR_eq },
   have pyth : a ^ 2 + ∥y∥ ^ 2 = 1 := sorry,
   have ha : a < 1 := sorry,
   have ha' : 1 - a ≠ 0 := by linarith,
