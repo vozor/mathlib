@@ -6,6 +6,7 @@ Authors: Heather Macbeth
 import geometry.manifold.charted_space
 import analysis.normed_space.inner_product
 
+
 /-!
 # Manifold structure on the sphere
 
@@ -21,34 +22,33 @@ open metric
 section to_inner_prod
 /-! Lemmas for `analysis.normed_space.inner_product_space`. -/
 
-variables (𝕜 : Type*) [is_R_or_C 𝕜]
+variables {𝕜 : Type*} [is_R_or_C 𝕜]
 variables {E : Type*} [inner_product_space 𝕜 E]
 variables {F : Type*} [normed_group F] [normed_space 𝕜 F]
 
-def orthogonal_projection_of_complete' {K : submodule 𝕜 E} (h : is_complete (K : set E)) :
-  E →ₗ[𝕜] K :=
-(orthogonal_projection (K : submodule 𝕜 E)).cod_restrict K (orthogonal_projection_mem h)
 
 lemma orthogonal_projection_is_complete [complete_space E] (K : submodule 𝕜 E) :
-  is_complete (K.orthogonal : set E) :=
+  complete_space K.orthogonal :=
 begin
   sorry
 end
 
-lemma sum_proj [complete_space E] {K : submodule 𝕜 E} (h : is_complete (K : set E)) :
-  orthogonal_projection_of_complete h
-  + orthogonal_projection_of_complete (orthogonal_projection_is_complete 𝕜 K)
+def orthogonal_projection_compl [complete_space E] (K : submodule 𝕜 E) :
+  E →L[𝕜] K.orthogonal :=
+@orthogonal_projection _ _ _ _ K.orthogonal (orthogonal_projection_is_complete _)
+
+lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
+  ((submodule.subtype K).comp (orthogonal_projection K) : E →ₗ[𝕜] E)
+  + (submodule.subtype K.orthogonal).comp (orthogonal_projection_compl K)
   = linear_map.id :=
 sorry
 
-lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} (h : is_complete (K : set E)) (w : E) :
-  (orthogonal_projection_of_complete h) w
-  + (orthogonal_projection_of_complete (orthogonal_projection_is_complete 𝕜 K)) w
-  = w :=
+lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
+  ↑((orthogonal_projection K) w) + ↑((orthogonal_projection_compl K) w) = w :=
 begin
   transitivity (linear_map.id : E →ₗ[𝕜] E) w,
-  { rw ← sum_proj 𝕜 h,
-    simp },
+  { rw ← sum_proj K,
+    simp [orthogonal_projection_compl] },
   { refl }
 end
 
@@ -56,6 +56,9 @@ include 𝕜
 
 lemma inner_product_space.mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
+
+-- lemma inner_product_space.sphere_prop (v : E) (r : ℝ) (w : sphere v r) : ∥↑w - v∥ = r :=
+-- by simp [inner_product_space.mem_sphere v w r]
 
 lemma inner_product_space.mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E) r ↔ ∥w∥ = r :=
 by simp [dist_eq_norm]
@@ -101,9 +104,6 @@ variables (v : E)
 
 open inner_product_space submodule
 
-lemma span_complete : is_complete (((span ℝ {v}) : submodule ℝ E) : set E) :=
-(span ℝ {v}).complete_of_finite_dimensional
-
 def orthog : submodule ℝ E := (span ℝ {v}).orthogonal
 
 lemma prod_zero_left {w : E} (hw : w ∈ orthog v) : ⟪w, v⟫_ℝ = 0 :=
@@ -112,24 +112,16 @@ inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma prod_zero_right {w : E} (hw : w ∈ orthog v) : ⟪v, w⟫_ℝ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
-def proj : E →ₗ[ℝ] (span ℝ {v} : submodule ℝ E) :=
-orthogonal_projection_of_complete' ℝ (span_complete v)
+def proj : E →L[ℝ] (span ℝ {v} : submodule ℝ E) :=
+orthogonal_projection (span ℝ {v})
 
 def projR : E →L[ℝ] ℝ :=
 (is_bounded_bilinear_map_inner.is_bounded_linear_map_right v).to_continuous_linear_map
 
-def proj' : E →ₗ[ℝ] (orthog v) :=
-orthogonal_projection_of_complete' ℝ (orthogonal_projection_is_complete ℝ (span ℝ {v}))
+def proj' : E →L[ℝ] (orthog v) :=
+orthogonal_projection_compl (span ℝ {v})
 
-def proj'' : E →L[ℝ] (orthog v) :=
-linear_map.mk_continuous
-(proj' v)
-1
-begin
-  intros w,
-  have := sum_proj' ℝ (span_complete v) w,
-  sorry
-end
+lemma projR_eq (w : E) : (projR v w) • v = proj v w := sorry
 
 -- def in_sphere {v} (hv : ∥v∥ = 1) : sphere (0:E) 1 :=
 -- ⟨v, (inner_product_space.mem_sphere_zero ℝ).mpr hv⟩
@@ -140,13 +132,23 @@ begin
   suffices : ↑x = v,
   { ext,
     exact this },
-  have h' := submodule.sup_orthogonal_of_is_complete (span_complete v),
-  have : (x : E) ∈ (⊤ : submodule ℝ E) := by simp,
-  rw ← h' at this,
-  rw submodule.mem_sup at this,
-  obtain ⟨y, hy, z, hz, hyz⟩ := this,
-  rw ← hyz,
-  sorry
+  have h_proj : (orthogonal_projection (span ℝ {v})) ↑x = ⟨v, mem_span_singleton_self v⟩,
+  { rw ← proj,
+    ext,
+    rw ← projR_eq,
+    rw hx,
+    simp },
+  have : (x:E) ∈ span ℝ {v},
+  { rw ← orthogonal_projection_norm_eq_iff ↑x,
+    have hx := x.2,
+    rw inner_product_space.mem_sphere at hx,
+    simp at hx,
+    rw hx,
+    rw h_proj,
+    exact hv },
+  convert (orthogonal_projection_mem_subspace_eq_self this).symm,
+  rw h_proj,
+  simp
 end
 
 lemma sphere_inter_hyperplane'  {v : E} (hv : ∥v∥ = 1) :
@@ -157,7 +159,7 @@ lemma sphere_inter_hyperplane'  {v : E} (hv : ∥v∥ = 1) :
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
 through `v` parallel to the orthogonal complement.  It restricts on the sphere to the stereographic
 projection. -/
-def stereo_to_fun (x : E) : orthog v := (2 / (1 - projR v x)) • proj'' v x
+def stereo_to_fun (x : E) : orthog v := (2 / (1 - projR v x)) • proj' v x
 
 lemma stereo_to_fun_continuous_on : continuous_on (stereo_to_fun v) {x : E | projR v x ≠ 1} :=
 begin
@@ -167,7 +169,7 @@ begin
     intros x h h',
     apply h,
     linarith },
-  { exact (proj'' v).continuous.continuous_on }
+  { convert (proj' v).continuous.continuous_on }
 end
 
 def stereo_inv_fun_aux (w : E) : E := (∥w∥ ^ 2 + 4)⁻¹ • ((4:ℝ) • w + (∥w∥ ^ 2 - 4) • v)
@@ -262,14 +264,14 @@ begin
   ext,
   simp only [stereo_to_fun, stereo_inv_fun_apply, norm_smul, smul_add, coe_smul, real.norm_two, normed_field.norm_div],
   set a := projR v x,
-  set y := proj'' v x,
+  set y := proj' v x,
   have split : (x : E) = y + a • v,
   { rw add_comm,
-    convert (sum_proj' ℝ (span_complete v) x).symm,
-    simp [a, projR, orthogonal_projection_of_complete],
-    sorry,
-    { simp [y, proj'', proj', orthogonal_projection_of_complete', orthogonal_projection],
-      rw dif_pos } },
+    convert (sum_proj' ↑x).symm,
+    simp [a],
+    rw projR_eq,
+    simp [proj],
+    apply_instance },
   have pyth : a ^ 2 + ∥y∥ ^ 2 = 1 := sorry,
   have ha : a < 1 := sorry,
   have ha' : 1 - a ≠ 0 := by linarith,
@@ -304,8 +306,8 @@ end
 lemma stereo_right_inv (hv : ∥v∥ = 1) (w : orthog v) :
   (stereo_to_fun v ∘ coe) (stereo_inv_fun hv w) = w :=
 begin
-  have h₁ : proj'' v v = 0 := sorry,
-  have h₂ : proj'' v w = w := sorry,
+  have h₁ : proj' v v = 0 := sorry,
+  have h₂ : proj' v w = w := sorry,
   have h₃ : projR v w = 0 := sorry,
   have h₄ : projR v v = 1 := sorry,
   simp only [stereo_to_fun, stereo_inv_fun, stereo_inv_fun_aux, function.comp_app],
