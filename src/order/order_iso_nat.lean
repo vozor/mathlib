@@ -52,19 +52,20 @@ variables (α : Type*) [partial_order α]
 
 /-- For partial orders, one of the many equivalent forms of well-foundedness is the following
 flavour of "ascending chain condition". -/
-def satisfies_acc := ∀ (a : ℕ →ₘ α), ∃ n, ∀ m, n ≤ m → a n = a m
+class satisfies_acc : Prop :=
+(acc : ∀ (a : ℕ →ₘ α), ∃ n, ∀ m, n ≤ m → a n = a m)
 
 lemma wf_iff_satisfies_acc (α : Type*) [partial_order α] :
   well_founded ((>) : α → α → Prop) ↔ satisfies_acc α :=
 begin
   split; intros h,
   { rw well_founded.well_founded_iff_has_max' at h,
-    intros a, have hne : (set.range a).nonempty, { use a 0, simp, },
+    fconstructor, intros a, have hne : (set.range a).nonempty, { use a 0, simp, },
     obtain ⟨x, ⟨n, hn⟩, range_bounded⟩ := h _ hne,
     use n, intros m hm, rw ← hn at range_bounded, symmetry,
     apply range_bounded (a m) (set.mem_range_self _) (a.monotone hm), },
   { rw rel_embedding.well_founded_iff_no_descending_seq, rintros ⟨a⟩,
-    obtain ⟨n, hn⟩ := h a.swap.to_preorder_hom,
+    rcases h, obtain ⟨n, hn⟩ := h a.swap.to_preorder_hom,
     exact n.succ_ne_self.symm (rel_embedding.to_preorder_hom_injective _ (hn _ n.le_succ)), },
 end
 
