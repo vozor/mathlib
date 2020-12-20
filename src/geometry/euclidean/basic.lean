@@ -823,7 +823,6 @@ def reflection (s : affine_subspace ℝ P) [nonempty s] [complete_space s.direct
     dsimp only,
     rw isometry_emetric_iff_metric,
     intros p₁ p₂,
-    let d : V := p₁ -ᵥ p₂,
     rw [←mul_self_inj_of_nonneg dist_nonneg dist_nonneg, dist_eq_norm_vsub V
           ((↑(orthogonal_projection s p₁) -ᵥ p₁) +ᵥ ↑(orthogonal_projection s p₁)),
         dist_eq_norm_vsub V p₁, ←inner_self_eq_norm_square, ←inner_self_eq_norm_square],
@@ -836,9 +835,9 @@ def reflection (s : affine_subspace ℝ P) [nonempty s] [complete_space s.direct
           _root_.orthogonal_projection s.direction (p₁ -ᵥ p₂) - (p₁ -ᵥ p₂),
           _root_.orthogonal_projection s.direction (p₁ -ᵥ p₂) +
           _root_.orthogonal_projection s.direction (p₁ -ᵥ p₂) - (p₁ -ᵥ p₂)⟫
-        : by rw [vsub_vadd_eq_vsub_sub, vadd_vsub_assoc, add_comm, add_sub_assoc,
+        : by {rw [vsub_vadd_eq_vsub_sub, vadd_vsub_assoc, add_comm, add_sub_assoc,
           ←vsub_vadd_eq_vsub_sub, vsub_vadd_comm, vsub_vadd_eq_vsub_sub, ←add_sub_assoc, ←coe_vsub,
-          ←affine_map.linear_map_vsub, orthogonal_projection_linear]
+          ←affine_map.linear_map_vsub], simp }
     ... = -4 * inner (p₁ -ᵥ p₂ - (_root_.orthogonal_projection s.direction (p₁ -ᵥ p₂) : V))
                    (_root_.orthogonal_projection s.direction (p₁ -ᵥ p₂)) +
           ⟪p₁ -ᵥ p₂, p₁ -ᵥ p₂⟫
