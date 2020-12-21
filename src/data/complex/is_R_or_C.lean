@@ -601,6 +601,39 @@ ring_hom.map_finsupp_prod _ f g
 
 end is_R_or_C
 
+namespace finite_dimensional
+variables {K : Type*} [is_R_or_C K]
+
+open_locale classical
+open is_R_or_C
+
+/-- An `is_R_or_C` field is finite-dimensional over `ℝ`, since it is spanned by `{1, I}`. -/
+@[nolint dangerous_instance] instance is_R_or_C_to_real : finite_dimensional ℝ K :=
+finite_dimensional.iff_fg.mpr ⟨{1, I},
+  begin
+    rw eq_top_iff,
+    intros a _,
+    rw [finset.coe_insert, finset.coe_singleton, submodule.mem_span_insert],
+    refine ⟨re a, (im a) • I, _, _⟩,
+    { rw submodule.mem_span_singleton,
+      use im a },
+    simp [re_add_im a, algebra.smul_def, algebra_map_eq_of_real]
+  end⟩
+
+/-- Over an `is_R_or_C` field, we can register the properness of finite-dimensional normed spaces as
+an instance. -/
+@[priority 900, nolint dangerous_instance] instance proper_is_R_or_C
+  {E : Type*} [normed_group E] [normed_space K E] [finite_dimensional K E] :
+  proper_space E :=
+begin
+  letI : normed_space ℝ E := restrict_scalars.normed_space ℝ K E,
+  letI : is_scalar_tower ℝ K E := restrict_scalars.is_scalar_tower _ _ _,
+  letI : finite_dimensional ℝ E := finite_dimensional.trans ℝ K E,
+  apply_instance
+end
+
+end finite_dimensional
+
 section instances
 
 noncomputable instance real.is_R_or_C : is_R_or_C ℝ :=
