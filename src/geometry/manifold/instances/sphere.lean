@@ -19,23 +19,51 @@ noncomputable theory
 
 open metric
 
-section to_inner_prod
-/-! Lemmas for `analysis.normed_space.inner_product_space`. -/
+namespace is_R_or_C
+/-! Lemmas for `data.complex.is_R_or_C`. -/
+
+variables {𝕜 : Type*} [is_R_or_C 𝕜]
+
+lemma im_eq_zero_of_le {a : 𝕜} (h : is_R_or_C.abs a ≤ is_R_or_C.re a) :
+  is_R_or_C.im a = 0 :=
+begin
+  suffices : is_R_or_C.im a * is_R_or_C.im a = 0,
+  { exact zero_eq_mul_self.mp (eq.symm this) },
+  have h_re : is_R_or_C.abs a = is_R_or_C.re a,
+  { have := is_R_or_C.re_le_abs a,
+    linarith },
+  have := is_R_or_C.mul_self_abs a,
+  simp [is_R_or_C.norm_sq] at this,
+  rw h_re at this,
+  linarith,
+end
+
+lemma re_eq_self_of_le {a : 𝕜} (h : is_R_or_C.abs a ≤ is_R_or_C.re a) : ↑(is_R_or_C.re a) = a:=
+begin
+  rw ← is_R_or_C.re_add_im a,
+  simp [im_eq_zero_of_le h]
+end
+
+instance : finite_dimensional ℝ 𝕜 := sorry
+
+end is_R_or_C
+
+namespace inner_product_space
+/-! Lemmas for `analysis.normed_space.inner_product`. -/
 
 variables {𝕜 : Type*} [is_R_or_C 𝕜]
 variables {E : Type*} [inner_product_space 𝕜 E]
-variables {F : Type*} [normed_group F] [normed_space 𝕜 F]
 
+open is_R_or_C
 
-lemma orthogonal_projection_is_complete [complete_space E] (K : submodule 𝕜 E) :
-  complete_space K.orthogonal :=
+instance [complete_space E] (K : submodule 𝕜 E) : complete_space K.orthogonal :=
 begin
   sorry
 end
 
-def orthogonal_projection_compl [complete_space E] (K : submodule 𝕜 E) :
+abbreviation orthogonal_projection_compl [complete_space E] (K : submodule 𝕜 E) :
   E →L[𝕜] K.orthogonal :=
-@orthogonal_projection _ _ _ _ K.orthogonal (orthogonal_projection_is_complete _)
+orthogonal_projection K.orthogonal --(orthogonal_projection_is_complete _)
 
 lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
   ((submodule.subtype K).comp (orthogonal_projection K) : E →ₗ[𝕜] E)
@@ -44,15 +72,94 @@ lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
 sorry
 
 lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
-  ↑((orthogonal_projection K) w) + ↑((orthogonal_projection_compl K) w) = w :=
+  ↑(orthogonal_projection K w) + ↑(orthogonal_projection_compl K w) = w :=
 begin
   transitivity (linear_map.id : E →ₗ[𝕜] E) w,
   { rw ← sum_proj K,
-    simp [orthogonal_projection_compl] },
+    simp },
   { refl }
 end
 
+lemma proj_perp [complete_space E] (K : submodule 𝕜 E) [complete_space K] (w : E) :
+  @inner 𝕜 _ _ (orthogonal_projection K w : E) ↑(orthogonal_projection_compl K w) = 0 :=
+(orthogonal_projection_compl K w).2 _ (orthogonal_projection K w).2
+
+lemma pyth_proj [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
+  ∥w∥ * ∥w∥ = ∥orthogonal_projection K w∥ * ∥orthogonal_projection K w∥
+    + ∥orthogonal_projection_compl K w∥ * ∥orthogonal_projection_compl K w∥:=
+begin
+  convert norm_add_square_eq_norm_square_add_norm_square_of_inner_eq_zero _ _ (proj_perp K w);
+  simp [sum_proj']
+end
+
+lemma pyth_proj_sq [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
+  ∥w∥ ^ 2 = ∥orthogonal_projection K w∥ ^ 2 + ∥orthogonal_projection_compl K w∥ ^ 2:=
+begin
+  convert @pyth_proj _ _ _ _ _ K _ w;
+  simp [pow_two]
+end
+
 include 𝕜
+
+lemma norm_sub_crossmul (v x : E) :
+  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ * ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥
+  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re (@inner 𝕜 _ _ x v)) :=
+begin
+  rw norm_sub_mul_self,
+  simp [inner_smul_left, inner_smul_right, norm_smul, is_R_or_C.norm_eq_abs],
+  ring
+end
+
+lemma norm_sub_crossmul' (v x : E) :
+  ∥(∥v∥:𝕜) • x - (∥x∥:𝕜) • v∥ ^ 2
+  = 2 * ∥x∥ * ∥v∥ * (∥x∥ * ∥v∥ - re (@inner 𝕜 _ _ x v)) :=
+by { convert norm_sub_crossmul v x, exact pow_two _ }
+
+
+lemma inner_eq_norm_mul_iff {v x : E}:
+  inner v x = (∥x∥ : 𝕜) * ∥v∥ ↔ (∥x∥ : 𝕜) • v = (∥v∥ : 𝕜) • x :=
+begin
+  transitivity ∥(∥x∥ : 𝕜) • v - (∥v∥ : 𝕜) • x∥ ^ 2 = 0,
+  { rw norm_sub_crossmul' x v,
+    split,
+    { intros hxv,
+      rw hxv,
+      simp only [mul_re, norm_eq_zero, of_real_re, sub_zero, mul_zero, of_real_im],
+      ring },
+    { simp [is_R_or_C.two_ne_zero],
+      rintros ((h | h )| h),
+      { simp [h] },
+      { simp [h] },
+      have : abs (@inner 𝕜 _ _ v x) ≤ re (@inner 𝕜 _ _ v x),
+      { have := @abs_inner_le_norm 𝕜 _ _ _ v x,
+        linarith },
+      rw ← re_eq_self_of_le this,
+      norm_cast,
+      linarith } },
+  { split,
+    { intros h,
+      apply eq_of_norm_sub_eq_zero,
+      apply pow_eq_zero h },
+    { intros h,
+      simp [h] } }
+end
+
+lemma inner_eq_norm_mul_iff_of_mem_sphere {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
+  @inner 𝕜 _ _ v x = 1 ↔ x = v :=
+begin
+  transitivity v = x,
+  { convert inner_eq_norm_mul_iff using 2;
+    simp [hv, hx] },
+  exact eq_comm
+end
+
+end inner_product_space
+
+
+namespace inner_product_space
+/-! Reals-specific lemmas for `analysis.normed_space.inner_product`. -/
+
+variables {E : Type*} [inner_product_space ℝ E]
 
 lemma inner_product_space.mem_sphere (v w : E) (r : ℝ) : w ∈ sphere v r ↔ ∥w - v∥ = r :=
 by simp [dist_eq_norm]
@@ -64,7 +171,37 @@ lemma inner_product_space.mem_sphere_zero {w : E} {r : ℝ} : w ∈ sphere (0:E)
 by simp [dist_eq_norm]
 
 
-end to_inner_prod
+lemma inner_eq_norm_mul_iff_real (v x : E) :
+  inner v x = ∥x∥ * ∥v∥ ↔ ∥x∥ • v = ∥v∥ • x :=
+inner_eq_norm_mul_iff
+
+example {v x : E} (hxv : ⟪v, x⟫_ℝ = ∥x∥ * ∥v∥) :
+  ∥v∥ • x = ∥x∥ • v :=
+by { rw inner_eq_norm_mul_iff_real at hxv, simp [hxv] }
+
+lemma inner_ne_norm_mul_iff_real (v x : E) :
+  inner v x < ∥x∥ * ∥v∥ ↔ ∥x∥ • v ≠ ∥v∥ • x :=
+begin
+  have : _ ↔ (_ ≠ _):= not_congr (inner_eq_norm_mul_iff_real v x),
+  rw ← this,
+  refine ⟨ne_of_lt, lt_of_le_of_ne _⟩,
+  rw mul_comm,
+  refine le_trans _ (abs_real_inner_le_norm v x),
+  exact le_abs_self _,
+end
+
+
+lemma inner_lt_one_iff_of_mem_sphere {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) :
+  ⟪v, x⟫_ℝ < 1 ↔ x ≠ v :=
+begin
+  transitivity v ≠ x,
+  { convert inner_ne_norm_mul_iff_real v x;
+    simp [hv, hx] },
+  exact ne_comm
+end
+
+
+end inner_product_space
 
 
 section
@@ -98,52 +235,72 @@ begin
   { simp [abs_of_neg (not_le.mp h)] }
 end
 
+
+
 end
+
+namespace finite_dimensional
+
+variables {𝕜 : Type*} [is_R_or_C 𝕜]
+variables {E : Type*} [normed_group E] [normed_space 𝕜 E]
+
+instance proper_is_R_or_C [finite_dimensional 𝕜 E] : proper_space E :=
+begin
+  letI : normed_space ℝ E := restrict_scalars.normed_space ℝ 𝕜 E,
+  letI : is_scalar_tower ℝ 𝕜 E := restrict_scalars.is_scalar_tower _ _ _,
+  letI : finite_dimensional ℝ E := finite_dimensional.trans ℝ 𝕜 E,
+  apply_instance
+end
+
+end finite_dimensional
+
+
+namespace inner_product_space
+/-! Another batch of lemmas for `analysis.normed_space.inner_product`, these ones specific to
+projections onto singletons -/
+
+variables {𝕜 : Type*} [is_R_or_C 𝕜]
+variables {E : Type*} [inner_product_space 𝕜 E]
+
+
+lemma projR_eq (v w : E) :
+  (@inner 𝕜 _ _ v w) • v = orthogonal_projection (submodule.span 𝕜 {v}) w :=
+begin
+  sorry
+end
+
+variables [complete_space E]
+
+lemma sum_proj'' (v w : E) :
+  (@inner 𝕜 _ _ v w) • v + (orthogonal_projection (submodule.span 𝕜 {v}).orthogonal w) = w :=
+by simp [projR_eq, sum_proj']
+
+
+
+lemma pyth_proj_sq' {v : E} (hv : ∥v∥ = 1) (w : E) :
+  ∥w∥ ^2 = (is_R_or_C.abs (@inner 𝕜 _ _ v w)) ^ 2
+    + ∥orthogonal_projection_compl (submodule.span 𝕜 {v}) w∥ ^ 2 :=
+begin
+  rw ← is_R_or_C.norm_eq_abs,
+  convert pyth_proj_sq w using 2,
+  have := congr_arg norm (projR_eq v w),
+  rw norm_smul at this,
+  rw hv at this,
+  simp at this,
+  rw this,
+  refl
+end
+
+
+end inner_product_space
+
 
 variables {E : Type*} [inner_product_space ℝ E] [complete_space E]
 variables (v : E)
 
 open inner_product_space submodule
 
-
-lemma sphere_inter_hyperplane'' {v x : E} (hv : ∥v∥ = 1) {hx : ∥x∥ = 1}
-  (hxv : ↑(orthogonal_projection (submodule.span ℝ {v}) x) = v) :
-  x = v :=
-begin
-  have : x ∈ span ℝ {v},
-  { rw ← orthogonal_projection_norm_eq_iff x,
-    rw hx,
-    convert congr_arg norm hxv,
-    rw hv },
-  convert (orthogonal_projection_mem_subspace_eq_self this).symm,
-  exact hxv.symm
-end
-
-lemma abs_inner_eq_norm_iff' (x y : E) (hx0 : x ≠ 0) (hy0 : y ≠ 0):
-  ⟪x, y⟫_ℝ = ∥x∥ * ∥y∥ ↔ ∃ (r : ℝ), 0 < r ∧ y = r • x :=
-begin
-  sorry
-end
-
-example {v x : E} (hv : ∥v∥ = 1) (hx : ∥x∥ = 1) (hxv : x ≠ v) :
-  ⟪v, x⟫_ℝ < 1 :=
-begin
-  -- revert hxv,
-  -- contrapose!,
-  -- intros hxv',
-  have : 0 < ∥x∥ := by { rw hx, norm_num },
-  have hx' : x ≠ 0 := norm_pos_iff.mp this,
-  have : 0 < ∥v∥ := by { rw hv, norm_num },
-  have hv' : v ≠ 0 := norm_pos_iff.mp this,
-  have := mt (abs_inner_eq_norm_iff' x v hx' hv').mp,
-  rw hv at this,
-  rw hx at this,
-  simp at this,
-  admit,
-end
-
-
-def orthog : submodule ℝ E := (span ℝ {v}).orthogonal
+abbreviation orthog : submodule ℝ E := (span ℝ {v}).orthogonal
 
 lemma prod_zero_left {w : E} (hw : w ∈ orthog v) : ⟪w, v⟫_ℝ = 0 :=
 inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
@@ -151,47 +308,39 @@ inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma prod_zero_right {w : E} (hw : w ∈ orthog v) : ⟪v, w⟫_ℝ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
-abbreviation proj : E →L[ℝ] (span ℝ {v} : submodule ℝ E) :=
-orthogonal_projection (span ℝ {v})
-
 abbreviation projR : E →L[ℝ] ℝ :=
 (is_bounded_bilinear_map_inner.is_bounded_linear_map_right v).to_continuous_linear_map
 
 abbreviation proj' : E →L[ℝ] (orthog v) :=
 orthogonal_projection_compl (span ℝ {v})
 
-lemma projR_eq (w : E) : (projR v w) • v = orthogonal_projection (span ℝ {v}) w := sorry
-
--- def in_sphere {v} (hv : ∥v∥ = 1) : sphere (0:E) 1 :=
--- ⟨v, (inner_product_space.mem_sphere_zero ℝ).mpr hv⟩
+lemma pyth_proj_sq'' {v : E} (hv : ∥v∥ = 1) (w : E) :
+  ∥w∥ ^2 = (inner v w) ^ 2 + ∥orthogonal_projection_compl (submodule.span ℝ {v}) w∥ ^ 2 :=
+begin
+  convert pyth_proj_sq' hv w using 2,
+  simp [abs_sq_eq]
+end
 
 lemma sphere_inter_hyperplane {v : E} (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : projR v x = 1) :
   x = ⟨v, by simp [hv]⟩ :=
 begin
-  suffices : ↑x = v,
-  { ext,
-    exact this },
-  have h_proj : (orthogonal_projection (span ℝ {v})) ↑x = ⟨v, mem_span_singleton_self v⟩,
-  { ext,
-    rw ← projR_eq,
-    rw hx,
-    simp },
-  have : (x:E) ∈ span ℝ {v},
-  { rw ← orthogonal_projection_norm_eq_iff ↑x,
-    have hx := x.2,
-    rw inner_product_space.mem_sphere at hx,
-    simp at hx,
-    rw hx,
-    rw h_proj,
-    exact hv },
-  convert (orthogonal_projection_mem_subspace_eq_self this).symm,
-  rw h_proj,
-  simp
+  have hx' : ∥↑x∥ = 1 := inner_product_space.mem_sphere_zero.mp x.2,
+  ext,
+  simpa [← inner_eq_norm_mul_iff_of_mem_sphere hv hx'] using hx
 end
+
+lemma sphere_inter_hyperplane'' {v : E} (hv : ∥v∥ = 1) {x : sphere (0:E) 1} (hx : ↑x ≠ v) :
+  projR v x < 1 :=
+begin
+  refine (inner_lt_one_iff_of_mem_sphere hv _).mpr hx,
+  simpa [inner_product_space.mem_sphere_zero] using x.2
+end
+
 
 lemma sphere_inter_hyperplane'  {v : E} (hv : ∥v∥ = 1) :
   ({⟨v, by simp [hv]⟩}ᶜ : set (sphere (0:E) 1)) ⊆ coe ⁻¹' {w : E | projR v w ≠ 1} :=
 λ w h, h ∘ (sphere_inter_hyperplane hv)
+
 
 /-- Stereographic projection, forward direction. This is a map from an inner product space `E` to
 the orthogonal complement of an element `v` of `E`. It is smooth away from the affine hyperplane
@@ -305,11 +454,12 @@ begin
   set y := proj' v x,
   have split : (x : E) = y + a • v,
   { rw add_comm,
-    convert (sum_proj' ↑x).symm,
-    simp [a],
-    rw projR_eq },
-  have pyth : a ^ 2 + ∥y∥ ^ 2 = 1 := sorry,
-  have ha : a < 1 := sorry,
+    exact (sum_proj'' v x).symm },
+  have pyth : a ^ 2 + ∥y∥ ^ 2 = 1,
+  { convert (pyth_proj_sq'' hv x).symm using 2,
+      have hx' : ∥↑x∥ = 1 := inner_product_space.mem_sphere_zero.mp x.2,
+    simp [hx'] },
+  have ha : a < 1 := sphere_inter_hyperplane'' hv hx,
   have ha' : 1 - a ≠ 0 := by linarith,
   have ha''' : ∥1 - a∥ ^ 2 = (1 - a) ^ 2 := by rw [real.norm_eq_abs, abs_sq_eq],
   have h_denom : (2 / ∥1 - a∥ * ∥y∥) ^ 2 + 4 ≠ 0,
