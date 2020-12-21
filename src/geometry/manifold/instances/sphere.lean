@@ -44,8 +44,6 @@ begin
   simp [im_eq_zero_of_le h]
 end
 
-instance : finite_dimensional ℝ 𝕜 := sorry
-
 end is_R_or_C
 
 namespace inner_product_space
@@ -56,29 +54,145 @@ variables {E : Type*} [inner_product_space 𝕜 E]
 
 open is_R_or_C
 
-instance [complete_space E] (K : submodule 𝕜 E) : complete_space K.orthogonal :=
+def inner_left (v : E) : E →L[𝕜] 𝕜 :=
+linear_map.mk_continuous
+  { to_fun := (@inner 𝕜 _ _ v),
+    map_add' := λ x y, inner_add_right,
+    map_smul' := λ c x, inner_smul_right }
+  ∥v∥
+  (by simpa [norm_eq_abs] using abs_inner_le_norm v)
+
+@[simp] lemma inner_left_coe (v : E) : (inner_left v : E → 𝕜) = @inner 𝕜 _ _ v := rfl
+
+@[simp] lemma inner_left_apply (v w : E) : inner_left v w = @inner 𝕜 _ _ v w := rfl
+
+lemma orthogonal_eq_inter (K : submodule 𝕜 E) : K.orthogonal = ⨅ v : K, (inner_left (v:E)).ker :=
 begin
-  sorry
+  apply le_antisymm,
+  { rw le_infi_iff,
+    rintros ⟨v, hv⟩ w hw,
+    simpa using hw _ hv },
+  { intros v hv w hw,
+    simp only [submodule.mem_infi] at hv,
+    exact hv ⟨w, hw⟩ }
 end
+
+lemma is_closed_orthogonal [complete_space E] (K : submodule 𝕜 E) : is_closed (K.orthogonal : set E) :=
+begin
+  rw orthogonal_eq_inter K,
+  convert is_closed_Inter (λ v : K, (inner_left (v:E)).is_closed_ker),
+  simp
+end
+
+instance [complete_space E] (K : submodule 𝕜 E) : complete_space K.orthogonal :=
+(is_closed_orthogonal K).complete_space_coe
+
+
+
+/-- If `K` is complete, `K` and `K.orthogonal` span the whole space. -/
+lemma submodule.sup_orthogonal_of_complete_space {K : submodule 𝕜 E} [complete_space (K : set E)] :
+  K ⊔ K.orthogonal = ⊤ :=
+submodule.sup_orthogonal_of_is_complete (complete_space_coe_iff_is_complete.mp ‹_›)
+
+
+lemma sum_split [complete_space E] (K : submodule 𝕜 E) [complete_space K] (v : E) :
+  ∃ {y : K} {z : K.orthogonal}, v = y + z :=
+begin
+  have hv : v ∈ K ⊔ K.orthogonal,
+  { simp [submodule.sup_orthogonal_of_complete_space] },
+  obtain ⟨y, hy, z, hz, hyz⟩ := submodule.mem_sup.mp hv,
+  exact ⟨⟨y, hy⟩, ⟨z, hz⟩, hyz.symm⟩
+end
+
+lemma mem_orthogonal_orthogonal_iff
+  [complete_space E] {K : submodule 𝕜 E} [complete_space (K : set E)] (v : E) :
+  v ∈ K.orthogonal.orthogonal ↔ v ∈ K :=
+begin
+  split,
+  { intros hv,
+    obtain ⟨y, z, hvyz⟩ := sum_split K v,
+    have hyz' : @inner 𝕜 _ _ ↑z (↑y + ↑z) = 0,
+    { convert hv z z.2,
+      rw hvyz },
+    have hyz : @inner 𝕜 _ _ (z:E) ↑y = 0,
+    { rw inner_eq_zero_sym,
+      exact z.2 y y.2 },
+    have : z = 0 := by simpa [inner_add_right, hyz] using hyz',
+    simp [hvyz, this] },
+  { intros hv w hw,
+    rw inner_eq_zero_sym,
+    exact hw v hv }
+end
+
+lemma orthogonal_orthogonal [complete_space E] {K : submodule 𝕜 E} [complete_space K] :
+  K.orthogonal.orthogonal = K :=
+by { ext v, exact mem_orthogonal_orthogonal_iff v }
 
 abbreviation orthogonal_projection_compl [complete_space E] (K : submodule 𝕜 E) :
   E →L[𝕜] K.orthogonal :=
-orthogonal_projection K.orthogonal --(orthogonal_projection_is_complete _)
+orthogonal_projection K.orthogonal
 
-lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
-  ((submodule.subtype K).comp (orthogonal_projection K) : E →ₗ[𝕜] E)
-  + (submodule.subtype K.orthogonal).comp (orthogonal_projection_compl K)
-  = linear_map.id :=
-sorry
+def submodule.subtype_continuous (K : submodule 𝕜 E) : K →L[𝕜] E :=
+linear_map.mk_continuous
+  K.subtype
+  1
+  (λ x, by { simp only [one_mul, submodule.subtype_apply], refl })
+
+@[simp] lemma submodule.subtype_continuous_apply (K : submodule 𝕜 E) (v : K) :
+  submodule.subtype_continuous K v = ↑v :=
+rfl
+
+/-- The orthogonal projection is the unique point in `K` with the orthogonality property, variant
+characterization in terms of the orthogonal complement. -/
+lemma eq_orthogonal_projection_of_mem_of_inner_eq_zero' {K : submodule 𝕜 E} [complete_space K]
+  {u : E} (v : K) (hvo : u - v ∈ K.orthogonal) :
+  v = orthogonal_projection K u :=
+begin
+  ext,
+  apply eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero (v.2 : ↑v ∈ K),
+  intros w hw,
+  rw inner_eq_zero_sym,
+  exact hvo w hw
+end
+
+lemma eq_proj_of_split (K : submodule 𝕜 E) [complete_space K]
+  {v : E} {y : K} {z : K.orthogonal} (hv : v = y + z) :
+  y = orthogonal_projection K v :=
+begin
+  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero',
+  convert z.2,
+  rw hv,
+  abel
+end
+
+lemma eq_proj_of_split' [complete_space E] (K : submodule 𝕜 E) [complete_space K]
+  {v : E} {y : K} {z : K.orthogonal} (hv : v = y + z) :
+  z = orthogonal_projection_compl K v  :=
+begin
+  suffices : ∃ y' : ↥(K.orthogonal.orthogonal : set E), v = y' + z,
+  { obtain ⟨y', hy'⟩ := this,
+    rw add_comm at hy',
+    exact eq_proj_of_split K.orthogonal hy' },
+  refine ⟨⟨(y:E), _⟩, _⟩,
+  { simp [mem_orthogonal_orthogonal_iff (y:E)] },
+  exact hv
+end
 
 lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
   ↑(orthogonal_projection K w) + ↑(orthogonal_projection_compl K w) = w :=
 begin
-  transitivity (linear_map.id : E →ₗ[𝕜] E) w,
-  { rw ← sum_proj K,
-    simp },
-  { refl }
+  obtain ⟨y, z, hwyz⟩ := sum_split K w,
+  convert hwyz.symm,
+  { rw eq_proj_of_split K hwyz },
+  { rw eq_proj_of_split' K hwyz }
 end
+
+
+lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
+  (submodule.subtype_continuous K).comp (orthogonal_projection K)
+  + (submodule.subtype_continuous K.orthogonal).comp (orthogonal_projection_compl K)
+  = continuous_linear_map.id 𝕜 E :=
+by { ext w, exact sum_proj' w }
 
 lemma proj_perp [complete_space E] (K : submodule 𝕜 E) [complete_space K] (w : E) :
   @inner 𝕜 _ _ (orthogonal_projection K w : E) ↑(orthogonal_projection_compl K w) = 0 :=
@@ -239,21 +353,6 @@ end
 
 end
 
-namespace finite_dimensional
-
-variables {𝕜 : Type*} [is_R_or_C 𝕜]
-variables {E : Type*} [normed_group E] [normed_space 𝕜 E]
-
-instance proper_is_R_or_C [finite_dimensional 𝕜 E] : proper_space E :=
-begin
-  letI : normed_space ℝ E := restrict_scalars.normed_space ℝ 𝕜 E,
-  letI : is_scalar_tower ℝ 𝕜 E := restrict_scalars.is_scalar_tower _ _ _,
-  letI : finite_dimensional ℝ E := finite_dimensional.trans ℝ 𝕜 E,
-  apply_instance
-end
-
-end finite_dimensional
-
 
 namespace inner_product_space
 /-! Another batch of lemmas for `analysis.normed_space.inner_product`, these ones specific to
@@ -308,8 +407,7 @@ inner_left_of_mem_orthogonal (mem_span_singleton_self v) hw
 lemma prod_zero_right {w : E} (hw : w ∈ orthog v) : ⟪v, w⟫_ℝ = 0 :=
 inner_right_of_mem_orthogonal (mem_span_singleton_self v) hw
 
-abbreviation projR : E →L[ℝ] ℝ :=
-(is_bounded_bilinear_map_inner.is_bounded_linear_map_right v).to_continuous_linear_map
+abbreviation projR : E →L[ℝ] ℝ := inner_left v
 
 abbreviation proj' : E →L[ℝ] (orthog v) :=
 orthogonal_projection_compl (span ℝ {v})
@@ -494,7 +592,7 @@ lemma stereo_right_inv (hv : ∥v∥ = 1) (w : orthog v) :
 begin
   have h₁ : proj' v v = 0 := sorry,
   have h₂ : proj' v w = w := sorry,
-  have h₃ : projR v w = 0 := sorry,
+  have h₃ : inner_left v w = (0:ℝ) := sorry,
   have h₄ : projR v v = 1 := sorry,
   simp only [stereo_to_fun, stereo_inv_fun, stereo_inv_fun_aux, function.comp_app],
   simp only [h₁, h₂, h₃, h₄, add_zero, continuous_linear_map.map_add, zero_add,
@@ -529,3 +627,22 @@ def stereographic (hv : ∥v∥ = 1) : local_homeomorph (sphere (0:E) 1) (orthog
   continuous_to_fun := (stereo_to_fun_continuous_on v).comp continuous_subtype_coe.continuous_on
     (sphere_inter_hyperplane' hv),
   continuous_inv_fun := (continuous_stereo_inv_fun hv).continuous_on }
+
+
+-- lemma submodule_eq_span_singletons [module 𝕜 E] (K : submodule 𝕜 E) :
+--   K = ⨆ (v : ↥K), (submodule.span 𝕜 {↑v}) :=
+-- begin
+--   apply le_antisymm,
+--   { rw le_supr_iff,
+--     intros b h v hv,
+--     exact h ⟨v, hv⟩ (submodule.mem_span_singleton_self v) },
+--   { apply @supr_le _ _ _ _ K,
+--     rintros ⟨v, hv⟩,
+--     exact (submodule.span_singleton_le_iff_mem v K).mpr hv }
+-- end
+
+-- lemma compl_eq_inter' (K : submodule 𝕜 E) : K.orthogonal = ⨅ v : K, (submodule.span 𝕜 {(v:E)}).orthogonal :=
+-- begin
+--   conv_lhs { rw submodule_eq_span_singletons K },
+--   rw ← submodule.infi_orthogonal (λ v : K, submodule.span 𝕜 {(v:E)}),
+-- end
