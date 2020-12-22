@@ -54,46 +54,42 @@ orthogonal_projection K.orthogonal
 /-- The orthogonal projection is the unique point in `K` with the orthogonality property, variant
 characterization in terms of the orthogonal complement. -/
 lemma eq_orthogonal_projection_of_mem_of_inner_eq_zero' {K : submodule 𝕜 E} [complete_space K]
-  {u : E} (v : K) (hvo : u - v ∈ K.orthogonal) :
+  {u v : E} (hv : v ∈ K) (hvo : u - v ∈ K.orthogonal) :
   v = orthogonal_projection K u :=
 begin
-  ext,
-  apply eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero (v.2 : ↑v ∈ K),
+  apply eq_orthogonal_projection_fn_of_mem_of_inner_eq_zero hv,
   intros w hw,
   rw inner_eq_zero_sym,
   exact hvo w hw
 end
 
 lemma eq_proj_of_split (K : submodule 𝕜 E) [complete_space K]
-  {v : E} {y : K} {z : K.orthogonal} (hv : v = y + z) :
+  {v y z : E} (hy : y ∈ K) (hz : z ∈ K.orthogonal) (hv : y + z = v) :
   y = orthogonal_projection K v :=
 begin
-  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero',
-  convert z.2,
-  rw hv,
+  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero' hy,
+  convert hz,
+  rw ← hv,
   abel
 end
 
 lemma eq_proj_of_split' [complete_space E] (K : submodule 𝕜 E) [complete_space K]
-  {v : E} {y : K} {z : K.orthogonal} (hv : v = y + z) :
+  {v y z : E} (hy : y ∈ K) (hz : z ∈ K.orthogonal) (hv : y + z = v) :
   z = orthogonal_projection_compl K v  :=
 begin
-  suffices : ∃ y' : ↥(K.orthogonal.orthogonal : set E), v = y' + z,
-  { obtain ⟨y', hy'⟩ := this,
-    rw add_comm at hy',
-    exact eq_proj_of_split K.orthogonal hy' },
-  refine ⟨⟨(y:E), _⟩, _⟩,
-  { simp [K.mem_orthogonal_orthogonal_iff (y:E)] },
-  exact hv
+  suffices hy' : y ∈ K.orthogonal.orthogonal, -- : set E), v = y' + z,
+  { rw add_comm at hv,
+    exact eq_proj_of_split K.orthogonal hz hy' hv },
+  simp [hy]
 end
 
 lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
   ↑(orthogonal_projection K w) + ↑(orthogonal_projection_compl K w) = w :=
 begin
-  obtain ⟨y, z, hwyz⟩ := K.exists_sum_mem_mem_orthogonal w,
-  convert hwyz.symm,
-  { rw eq_proj_of_split K hwyz },
-  { rw eq_proj_of_split' K hwyz }
+  obtain ⟨y, hy, z, hz, hwyz⟩ := K.exists_sum_mem_mem_orthogonal w,
+  convert hwyz,
+  { rw eq_proj_of_split K hy hz hwyz },
+  { rw eq_proj_of_split' K hy hz hwyz }
 end
 
 
@@ -521,13 +517,34 @@ begin
     nlinarith }
 end
 
+lemma inner_left_self {v : E} (hv : ∥v∥ = 1) : inner_left v v = (1:ℝ) :=
+by simp [real_inner_self_eq_norm_square, hv]
+
+lemma inner_left_orthogonal (v : E) {w : E} (hw : w ∈ (submodule.span ℝ ({v} : set E)).orthogonal) :
+  @inner_left ℝ E _ _ v w = (0:ℝ) :=
+hw _ (submodule.mem_span_singleton_self v)
+
+lemma proj_orthogonal_singleton (v : E) :
+  orthogonal_projection (submodule.span ℝ ({v} : set E)).orthogonal v = 0 :=
+begin
+  symmetry,
+  ext,
+  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero',
+  { simp },
+  { simp [submodule.mem_span_singleton_self] },
+end
+
+lemma proj_orthogonal (v : E) {w : E} (hw : w ∈ (submodule.span ℝ ({v} : set E)).orthogonal) :
+  ↑(orthogonal_projection (submodule.span ℝ ({v} : set E)).orthogonal w) = w :=
+orthogonal_projection_mem_subspace_eq_self hw
+
 lemma stereo_right_inv (hv : ∥v∥ = 1) (w : orthog v) :
   (stereo_to_fun v ∘ coe) (stereo_inv_fun hv w) = w :=
 begin
-  have h₁ : proj' v v = 0 := sorry,
-  have h₂ : proj' v w = w := sorry,
-  have h₃ : inner_left v w = (0:ℝ) := sorry,
-  have h₄ : projR v v = 1 := sorry,
+  have h₁ : proj' v v = 0 := proj_orthogonal_singleton v,
+  have h₂ : proj' v w = w := by simpa using orthogonal_projection_mem_subspace_eq_self w.2,
+  have h₃ : inner_left v w = (0:ℝ) := inner_left_orthogonal v w.2,
+  have h₄ : inner_left v v = (1:ℝ) := inner_left_self hv,
   simp only [stereo_to_fun, stereo_inv_fun, stereo_inv_fun_aux, function.comp_app],
   simp only [h₁, h₂, h₃, h₄, add_zero, continuous_linear_map.map_add, zero_add,
   subtype.coe_mk, mul_zero, smul_zero, continuous_linear_map.map_smul],
