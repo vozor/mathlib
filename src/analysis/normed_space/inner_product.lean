@@ -1714,6 +1714,21 @@ begin
     exact hv ⟨w, hw⟩ }
 end
 
+<<<<<<< HEAD
+=======
+/-- The orthogonal complement of any submodule `K` is closed. -/
+lemma submodule.is_closed_orthogonal (K : submodule 𝕜 E) : is_closed (K.orthogonal : set E) :=
+begin
+  rw orthogonal_eq_inter K,
+  convert is_closed_Inter (λ v : K, (inner_left (v:E)).is_closed_ker),
+  simp
+end
+
+/-- In a complete space, the orthogonal complement of any submodule `K` is complete. -/
+instance [complete_space E] (K : submodule 𝕜 E) : complete_space K.orthogonal :=
+K.is_closed_orthogonal.complete_space_coe
+
+>>>>>>> orthogonal-orthogonal
 variables (𝕜 E)
 
 /-- `submodule.orthogonal` gives a `galois_connection` between
@@ -1731,7 +1746,6 @@ subspaces. -/
 lemma submodule.orthogonal_le {K₁ K₂ : submodule 𝕜 E} (h : K₁ ≤ K₂) :
   K₂.orthogonal ≤ K₁.orthogonal :=
 (submodule.orthogonal_gc 𝕜 E).monotone_l h
-
 
 /-- `K` is contained in `K.orthogonal.orthogonal`. -/
 lemma submodule.le_orthogonal_orthogonal (K : submodule 𝕜 E) : K ≤ K.orthogonal.orthogonal :=
@@ -1788,38 +1802,25 @@ submodule.sup_orthogonal_of_is_complete (complete_space_coe_iff_is_complete.mp �
 /-- If `K` is complete, any `v` in `E` can be expressed as a sum of elements of `K` and
 `K.orthogonal`. -/
 lemma submodule.exists_sum_mem_mem_orthogonal (K : submodule 𝕜 E) [complete_space K] (v : E) :
-  ∃ {y : K} {z : K.orthogonal}, v = y + z :=
-begin
-  have hv : v ∈ K ⊔ K.orthogonal,
-  { simp [submodule.sup_orthogonal_of_complete_space] },
-  obtain ⟨y, hy, z, hz, hyz⟩ := submodule.mem_sup.mp hv,
-  exact ⟨⟨y, hy⟩, ⟨z, hz⟩, hyz.symm⟩
-end
-
-/-- If `K` is complete, then the orthogonal complement of its orthogonal complement is itself. -/
-@[simp] lemma submodule.mem_orthogonal_orthogonal_iff
-  (K : submodule 𝕜 E) [complete_space K] (v : E) :
-  v ∈ K.orthogonal.orthogonal ↔ v ∈ K :=
-begin
-  split,
-  { obtain ⟨⟨y, hy⟩, ⟨z, hz⟩, hvyz⟩ := K.exists_sum_mem_mem_orthogonal v,
-    have hyz : ⟪z, y⟫ = 0,
-    { simpa [inner_eq_zero_sym] using hz y hy },
-    intros hv,
-    have hz' : z = 0,
-    { have hyz' : ⟪z, y + z⟫ = 0,
-      { simpa [hvyz] using hv z hz },
-      simpa [inner_add_right, hyz] using hyz' },
-    simp [hvyz, hy, hz'] },
-  { intros hv w hw,
-    rw inner_eq_zero_sym,
-    exact hw v hv }
-end
+  ∃ (y ∈ K) (z ∈ K.orthogonal), y + z = v :=
+by { rw [← submodule.mem_sup], simp [submodule.sup_orthogonal_of_complete_space] }
 
 /-- If `K` is complete, then the orthogonal complement of its orthogonal complement is itself. -/
 @[simp] lemma submodule.orthogonal_orthogonal (K : submodule 𝕜 E) [complete_space K] :
   K.orthogonal.orthogonal = K :=
-by { ext v, exact K.mem_orthogonal_orthogonal_iff v }
+begin
+  ext v,
+  split,
+  { obtain ⟨y, hy, z, hz, hvyz⟩ := K.exists_sum_mem_mem_orthogonal v,
+    intros hv,
+    have hz' : z = 0,
+    { have hyz : ⟪z, y⟫ = 0 := by simp [hz y hy, inner_eq_zero_sym],
+      simpa [← hvyz, inner_add_right, hyz] using hv z hz },
+    simp [← hvyz, hy, hz'] },
+  { intros hv w hw,
+    rw inner_eq_zero_sym,
+    exact hw v hv }
+end
 
 /-- If `K` is complete, `K` and `K.orthogonal` are complements of each
 other. -/
