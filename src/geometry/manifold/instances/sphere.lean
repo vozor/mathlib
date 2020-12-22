@@ -271,17 +271,42 @@ variables {𝕜 : Type*} [is_R_or_C 𝕜]
 variables {E : Type*} [inner_product_space 𝕜 E]
 
 
-lemma projR_eq (v w : E) :
+lemma projR_eq' {v : E} (hv : v ≠ 0) (w : E) :
+  ((@inner 𝕜 _ _ v w) / ∥v∥ ^ 2) • v = orthogonal_projection (submodule.span 𝕜 {v}) w :=
+begin
+  apply eq_orthogonal_projection_of_mem_of_inner_eq_zero,
+  { rw submodule.mem_span_singleton,
+    use (@inner 𝕜 _ _ v w) / ∥v∥ ^ 2 },
+  intros x hx,
+  rw submodule.mem_span_singleton at hx,
+  obtain ⟨c, rfl⟩ := hx,
+  have hv' : ↑∥v∥ ^ 2 = @inner 𝕜 _ _ v v := by { norm_cast, simp [norm_sq_eq_inner] },
+  have hv'' : @inner 𝕜 _ _ v v ≠ 0 := hv ∘ inner_self_eq_zero.mp,
+  have h_div := div_mul_cancel _ hv'',
+  simp [inner_sub_left, inner_smul_left, inner_smul_right, is_R_or_C.conj_div, conj_sym, hv'],
+  right,
+  rw h_div,
+  simp [sub_self],
+end
+
+lemma projR_eq {v : E} (hv : ∥v∥ = 1) (w : E) :
   (@inner 𝕜 _ _ v w) • v = orthogonal_projection (submodule.span 𝕜 {v}) w :=
 begin
-  sorry
+  have hv' : v ≠ 0,
+  { intros h,
+    rw ← norm_eq_zero at h,
+    rw hv at h,
+    norm_num at h },
+  convert projR_eq' hv' w,
+  rw hv,
+  simp
 end
 
 variables [complete_space E]
 
-lemma sum_proj'' (v w : E) :
+lemma sum_proj'' (v w : E) (hv : ∥v∥ = 1) :
   (@inner 𝕜 _ _ v w) • v + (orthogonal_projection (submodule.span 𝕜 {v}).orthogonal w) = w :=
-by simp [projR_eq, sum_proj']
+by simp [projR_eq hv, sum_proj']
 
 
 
@@ -291,7 +316,7 @@ lemma pyth_proj_sq' {v : E} (hv : ∥v∥ = 1) (w : E) :
 begin
   rw ← is_R_or_C.norm_eq_abs,
   convert pyth_proj_sq w using 2,
-  have := congr_arg norm (projR_eq v w),
+  have := congr_arg norm (projR_eq hv w),
   rw norm_smul at this,
   rw hv at this,
   simp at this,
@@ -461,7 +486,7 @@ begin
   set y := proj' v x,
   have split : (x : E) = y + a • v,
   { rw add_comm,
-    exact (sum_proj'' v x).symm },
+    exact (sum_proj'' v x hv).symm },
   have pyth : a ^ 2 + ∥y∥ ^ 2 = 1,
   { convert (pyth_proj_sq'' hv x).symm using 2,
       have hx' : ∥↑x∥ = 1 := inner_product_space.mem_sphere_zero.mp x.2,
