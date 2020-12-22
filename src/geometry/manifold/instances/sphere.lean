@@ -24,25 +24,17 @@ namespace is_R_or_C
 
 variables {𝕜 : Type*} [is_R_or_C 𝕜]
 
-lemma im_eq_zero_of_le {a : 𝕜} (h : is_R_or_C.abs a ≤ is_R_or_C.re a) :
-  is_R_or_C.im a = 0 :=
+lemma im_eq_zero_of_le {a : 𝕜} (h : abs a ≤ re a) : im a = 0 :=
 begin
-  suffices : is_R_or_C.im a * is_R_or_C.im a = 0,
-  { exact zero_eq_mul_self.mp (eq.symm this) },
-  have h_re : is_R_or_C.abs a = is_R_or_C.re a,
-  { have := is_R_or_C.re_le_abs a,
-    linarith },
-  have := is_R_or_C.mul_self_abs a,
-  simp [is_R_or_C.norm_sq] at this,
-  rw h_re at this,
-  linarith,
+  rw ← zero_eq_mul_self,
+  have : re a * re a = re a * re a + im a * im a,
+  { convert is_R_or_C.mul_self_abs a;
+    linarith [re_le_abs a] },
+  linarith
 end
 
-lemma re_eq_self_of_le {a : 𝕜} (h : is_R_or_C.abs a ≤ is_R_or_C.re a) : ↑(is_R_or_C.re a) = a:=
-begin
-  rw ← is_R_or_C.re_add_im a,
-  simp [im_eq_zero_of_le h]
-end
+lemma re_eq_self_of_le {a : 𝕜} (h : abs a ≤ re a) : ↑(re a) = a :=
+by { rw ← re_add_im a, simp [im_eq_zero_of_le h] }
 
 end is_R_or_C
 
@@ -54,93 +46,10 @@ variables {E : Type*} [inner_product_space 𝕜 E]
 
 open is_R_or_C
 
-def inner_left (v : E) : E →L[𝕜] 𝕜 :=
-linear_map.mk_continuous
-  { to_fun := (@inner 𝕜 _ _ v),
-    map_add' := λ x y, inner_add_right,
-    map_smul' := λ c x, inner_smul_right }
-  ∥v∥
-  (by simpa [norm_eq_abs] using abs_inner_le_norm v)
-
-@[simp] lemma inner_left_coe (v : E) : (inner_left v : E → 𝕜) = @inner 𝕜 _ _ v := rfl
-
-@[simp] lemma inner_left_apply (v w : E) : inner_left v w = @inner 𝕜 _ _ v w := rfl
-
-lemma orthogonal_eq_inter (K : submodule 𝕜 E) : K.orthogonal = ⨅ v : K, (inner_left (v:E)).ker :=
-begin
-  apply le_antisymm,
-  { rw le_infi_iff,
-    rintros ⟨v, hv⟩ w hw,
-    simpa using hw _ hv },
-  { intros v hv w hw,
-    simp only [submodule.mem_infi] at hv,
-    exact hv ⟨w, hw⟩ }
-end
-
-lemma is_closed_orthogonal [complete_space E] (K : submodule 𝕜 E) : is_closed (K.orthogonal : set E) :=
-begin
-  rw orthogonal_eq_inter K,
-  convert is_closed_Inter (λ v : K, (inner_left (v:E)).is_closed_ker),
-  simp
-end
-
-instance [complete_space E] (K : submodule 𝕜 E) : complete_space K.orthogonal :=
-(is_closed_orthogonal K).complete_space_coe
-
-
-
-/-- If `K` is complete, `K` and `K.orthogonal` span the whole space. -/
-lemma submodule.sup_orthogonal_of_complete_space {K : submodule 𝕜 E} [complete_space (K : set E)] :
-  K ⊔ K.orthogonal = ⊤ :=
-submodule.sup_orthogonal_of_is_complete (complete_space_coe_iff_is_complete.mp ‹_›)
-
-
-lemma sum_split [complete_space E] (K : submodule 𝕜 E) [complete_space K] (v : E) :
-  ∃ {y : K} {z : K.orthogonal}, v = y + z :=
-begin
-  have hv : v ∈ K ⊔ K.orthogonal,
-  { simp [submodule.sup_orthogonal_of_complete_space] },
-  obtain ⟨y, hy, z, hz, hyz⟩ := submodule.mem_sup.mp hv,
-  exact ⟨⟨y, hy⟩, ⟨z, hz⟩, hyz.symm⟩
-end
-
-lemma mem_orthogonal_orthogonal_iff
-  [complete_space E] {K : submodule 𝕜 E} [complete_space (K : set E)] (v : E) :
-  v ∈ K.orthogonal.orthogonal ↔ v ∈ K :=
-begin
-  split,
-  { intros hv,
-    obtain ⟨y, z, hvyz⟩ := sum_split K v,
-    have hyz' : @inner 𝕜 _ _ ↑z (↑y + ↑z) = 0,
-    { convert hv z z.2,
-      rw hvyz },
-    have hyz : @inner 𝕜 _ _ (z:E) ↑y = 0,
-    { rw inner_eq_zero_sym,
-      exact z.2 y y.2 },
-    have : z = 0 := by simpa [inner_add_right, hyz] using hyz',
-    simp [hvyz, this] },
-  { intros hv w hw,
-    rw inner_eq_zero_sym,
-    exact hw v hv }
-end
-
-lemma orthogonal_orthogonal [complete_space E] {K : submodule 𝕜 E} [complete_space K] :
-  K.orthogonal.orthogonal = K :=
-by { ext v, exact mem_orthogonal_orthogonal_iff v }
 
 abbreviation orthogonal_projection_compl [complete_space E] (K : submodule 𝕜 E) :
   E →L[𝕜] K.orthogonal :=
 orthogonal_projection K.orthogonal
-
-def submodule.subtype_continuous (K : submodule 𝕜 E) : K →L[𝕜] E :=
-linear_map.mk_continuous
-  K.subtype
-  1
-  (λ x, by { simp only [one_mul, submodule.subtype_apply], refl })
-
-@[simp] lemma submodule.subtype_continuous_apply (K : submodule 𝕜 E) (v : K) :
-  submodule.subtype_continuous K v = ↑v :=
-rfl
 
 /-- The orthogonal projection is the unique point in `K` with the orthogonality property, variant
 characterization in terms of the orthogonal complement. -/
@@ -174,14 +83,14 @@ begin
     rw add_comm at hy',
     exact eq_proj_of_split K.orthogonal hy' },
   refine ⟨⟨(y:E), _⟩, _⟩,
-  { simp [mem_orthogonal_orthogonal_iff (y:E)] },
+  { simp [K.mem_orthogonal_orthogonal_iff (y:E)] },
   exact hv
 end
 
 lemma sum_proj' [complete_space E] {K : submodule 𝕜 E} [complete_space K] (w : E) :
   ↑(orthogonal_projection K w) + ↑(orthogonal_projection_compl K w) = w :=
 begin
-  obtain ⟨y, z, hwyz⟩ := sum_split K w,
+  obtain ⟨y, z, hwyz⟩ := K.exists_sum_mem_mem_orthogonal w,
   convert hwyz.symm,
   { rw eq_proj_of_split K hwyz },
   { rw eq_proj_of_split' K hwyz }
@@ -189,8 +98,8 @@ end
 
 
 lemma sum_proj [complete_space E] (K : submodule 𝕜 E) [complete_space K] :
-  (submodule.subtype_continuous K).comp (orthogonal_projection K)
-  + (submodule.subtype_continuous K.orthogonal).comp (orthogonal_projection_compl K)
+  K.subtype_continuous.comp (orthogonal_projection K)
+  + K.orthogonal.subtype_continuous.comp (orthogonal_projection_compl K)
   = continuous_linear_map.id 𝕜 E :=
 by { ext w, exact sum_proj' w }
 
