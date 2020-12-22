@@ -187,8 +187,8 @@ lemma conj_bijective : @function.bijective K K is_R_or_C.conj := conj_involutive
 
 lemma conj_inj (z w : K) : conj z = conj w ↔ z = w := conj_bijective.1.eq_iff
 
-@[simp] lemma conj_eq_zero {z : K} : conj z = 0 ↔ z = 0 :=
-by simpa using @conj_inj K _ z 0
+lemma conj_eq_zero {z : K} : conj z = 0 ↔ z = 0 :=
+ring_hom.map_eq_zero conj
 
 lemma eq_conj_iff_real {z : K} : conj z = z ↔ ∃ r : ℝ, z = (r : K) :=
 begin
@@ -607,6 +607,13 @@ variables {K : Type*} [is_R_or_C K]
 open_locale classical
 open is_R_or_C
 
+<<<<<<< HEAD
+=======
+/-- This instance generates a type-class problem with a metavariable `?m` that should satisfy
+`is_R_or_C ?m`. Since this can only be satisfied by `ℝ` or `ℂ`, this does not cause problems. -/
+library_note "is_R_or_C instance"
+
+>>>>>>> master
 /-- An `is_R_or_C` field is finite-dimensional over `ℝ`, since it is spanned by `{1, I}`. -/
 @[nolint dangerous_instance] instance is_R_or_C_to_real : finite_dimensional ℝ K :=
 finite_dimensional.iff_fg.mpr ⟨{1, I},
@@ -622,7 +629,11 @@ finite_dimensional.iff_fg.mpr ⟨{1, I},
 
 /-- Over an `is_R_or_C` field, we can register the properness of finite-dimensional normed spaces as
 an instance. -/
+<<<<<<< HEAD
 @[priority 900, nolint dangerous_instance] instance proper_is_R_or_C
+=======
+@[priority 900, nolint dangerous_instance] instance proper_is_R_or_C -- note [is_R_or_C instance]
+>>>>>>> master
   {E : Type*} [normed_group E] [normed_space K E] [finite_dimensional K E] :
   proper_space E :=
 begin
