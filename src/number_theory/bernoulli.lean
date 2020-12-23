@@ -84,8 +84,12 @@ lemma bernoulli_def (n : ℕ) :
   bernoulli n = 1 - ∑ k in finset.range n, (k : ℕ).binomial (n - k) / (n - k + 1) * bernoulli k :=
 by { rw [bernoulli_def', ← fin.sum_univ_eq_sum_range], refl }
 
---lemma bernoulli_spec (n : ℕ) : sum = whatever
-
+lemma bernoulli_spec (n : ℕ) :
+  ∑ k in finset.range n.succ, ((k : ℕ).binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k = 1 :=
+begin
+  rw [finset.sum_range_succ, bernoulli_def, nat.sub_self, nat.binomial_zero_right],
+  simp,
+end
 
 @[simp] lemma bernoulli_zero  : bernoulli 0 = 1   := rfl
 @[simp] lemma bernoulli_one   : bernoulli 1 = 1/2 :=
@@ -110,13 +114,13 @@ begin
 end
 
 @[simp] lemma sum_bernoulli' (n : ℕ) :
-  ∑ k in finset.range n, (n.choose k : ℚ) * bernoulli k = n :=
+  ∑ k in finset.range n, (k.binomial (n - k) : ℚ) * bernoulli k = n :=
 begin
   -- n = 0 is a special case so let's prove it for n of the form d + 1.
   cases n with d, simp, -- checking special case n = 0 with `simp`
   -- n = d + 1 case: By definition of B_d, goal obviously equivalent to
   -- $$\Sum_{k\leq d}\binom{d+1}k\cdot B_k=\Sum_{k\leq d}(d+1)\binom{d}{x}\frac{B_k}{d+1-k}$$
-  rw [← mul_one (d.succ : ℚ), ← bernoulli_def'' d, finset.mul_sum],
+  rw [← mul_one (d.succ : ℚ), ← bernoulli_spec d, finset.mul_sum],
   -- It suffices to show the summands are equal paorwise
   apply finset.sum_congr rfl,
   -- So assume k <= d are naturals and we've got to show
