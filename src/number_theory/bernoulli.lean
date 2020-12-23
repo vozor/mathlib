@@ -146,7 +146,6 @@ begin
   intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in a ghandy form.
   -- But do I ever use it?
   -- Actually, maybe the right form is this:
-  have hmagic : k + (d - k) = d := nat.add_sub_cancel' hkd_nat, -- what doors does this unlock?
   -- cancel bernoullis,
   rw ← mul_assoc, congr',
   simp [binomial_spec', succ_eq_add_one],
@@ -169,6 +168,7 @@ begin
   rw [← factorial_succ, mul_right_comm, mul_assoc, ←factorial_succ],
   congr',
   rw factorial_succ,congr',
-  -- lol that is somehow beautiful
-  convert nat.add_sub_cancel' hkd_nat,
+  -- lol
+  have hmagic : k + (d - k) = d := nat.add_sub_cancel' hkd_nat, -- what doors does this unlock?
+  exact hmagic
 end
