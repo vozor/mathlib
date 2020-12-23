@@ -341,6 +341,11 @@ instance submodule.normed_group {𝕜 : Type*} {_ : ring 𝕜}
 { norm := λx, norm (x : E),
   dist_eq := λx y, dist_eq_norm (x : E) (y : E) }
 
+@[simp] lemma coe_norm {𝕜 : Type*} {_ : ring 𝕜}
+  {E : Type*} [normed_group E] {_ : module 𝕜 E} (s : submodule 𝕜 E) (x : s) :
+  ∥x∥ = ∥(x:E)∥ :=
+rfl
+
 /-- normed group instance on the product of two normed groups, using the sup norm. -/
 instance prod.normed_group : normed_group (α × β) :=
 { norm := λx, max ∥x.1∥ ∥x.2∥,
