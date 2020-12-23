@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2020 Johan Commelin. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Johan Commelin
+Authors: Johan Commelin, Kevin Buzzard
 -/
 import data.rat
 import data.fintype.card
@@ -9,7 +9,50 @@ import data.fintype.card
 /-!
 # Bernoulli numbers
 
-The Bernoulli numbers are a sequence of numbers that frequently show up in number theory.
+The Bernoulli numbers are a sequence of rational numbers that frequently show up in
+number theory.
+
+## Mathematical overview
+
+The Bernoulli numbers $(B_0, B_1, B_2, \ldots)=(1, 1/2, 1/6, 0, -1/30, \ldots)$ are
+a sequence of rational numbers. They show up in the Taylor series of trigonometric
+and hyperbolic functions, and they are related to the values that the Riemann Zeta function
+takes at negative integers. If $2 \leq k$ is even then
+
+$$\sum_{n\geq1}n^{-k}=B_k\pi^k.$$
+
+
+relate  multiples of products of powers of `π` and)
+special values of the Riemann zeta function, although many of these things are not
+yet formalised.
+
+The Bernoulli numbers can be formally defined thus:
+
+$$\sum B_n\frac{t^n}{n!}=\frac{t}{1-e^{-t}}$$
+
+although that happens to not be the definition in mathlib (this is an *implementation
+detail* though, and need not concern the mathematician).
+
+-- TODO : prove the displayed equation above
+
+Note: Not all of these facts are available in mathlib.
+
+## Implementation detail
+
+```
+def bernoulli : ℕ → ℚ :=
+well_founded.fix nat.lt_wf
+  (λ n bernoulli, 1 - ∑ k : fin n, (n.choose k) * bernoulli k k.2 / (n + 1 - k))
+```
+The formal definition has the property that `bernoulli 0 = 1`
+
+-- Should use finset, not fin?
+
+--
+According to Wikipedia https://en.wikipedia.org/wiki/Bernoulli_number there are
+two conventions for Bernoulli numbers. Lean's `bernoulli (n : ℕ) : ℚ` is the
+convention denoted $$B_n^+$$ on Wikipedia.  `n`'th
+Bernoulli number.
 
 For example, they show up in the Taylor series of many trigonometric and hyperbolic functions,
 and also as (integral multiples of products of powers of `π` and)
