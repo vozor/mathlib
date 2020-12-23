@@ -5,6 +5,7 @@ Authors: Johan Commelin, Kevin Buzzard
 -/
 import data.rat
 import data.fintype.card
+import data.nat.choose.binomial
 
 /-!
 # Bernoulli numbers
@@ -73,15 +74,18 @@ the $n$-th Bernoulli number $B_n$ is defined recursively via
 $$B_n = 1 - \sum_{k < n} \binom{n}{k}\frac{B_k}{n+1-k}$$ -/
 def bernoulli : ℕ → ℚ :=
 well_founded.fix nat.lt_wf
-  (λ n bernoulli, 1 - ∑ k : fin n, (n.choose k) / (n - k + 1) * bernoulli k k.2)
+  (λ n bernoulli, 1 - ∑ k : fin n, (k : ℕ).binomial (n - k) / (n - k + 1) * bernoulli k k.2)
 
 lemma bernoulli_def' (n : ℕ) :
-  bernoulli n = 1 - ∑ k : fin n, (n.choose k) * (bernoulli k) / (n + 1 - k) :=
+  bernoulli n = 1 - ∑ k : fin n, (k : ℕ).binomial (n - k) / (n - k + 1) * bernoulli k :=
 well_founded.fix_eq _ _ _
 
 lemma bernoulli_def (n : ℕ) :
-  bernoulli n = 1 - ∑ k in finset.range n, (n.choose k) * (bernoulli k) / (n + 1 - k) :=
+  bernoulli n = 1 - ∑ k in finset.range n, (k : ℕ).binomial (n - k) / (n - k + 1) * bernoulli k :=
 by { rw [bernoulli_def', ← fin.sum_univ_eq_sum_range], refl }
+
+--lemma bernoulli_spec (n : ℕ) : sum = whatever
+
 
 @[simp] lemma bernoulli_zero  : bernoulli 0 = 1   := rfl
 @[simp] lemma bernoulli_one   : bernoulli 1 = 1/2 :=
@@ -105,8 +109,47 @@ begin
   repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
 end
 
-@[simp] lemma sum_bernoulli (n : ℕ) :
+@[simp] lemma sum_bernoulli' (n : ℕ) :
   ∑ k in finset.range n, (n.choose k : ℚ) * bernoulli k = n :=
+begin
+  -- n = 0 is a special case so let's prove it for n of the form d + 1.
+  cases n with d, simp, -- checking special case n = 0 with `simp`
+  -- n = d + 1 case: By definition of B_d, goal obviously equivalent to
+  -- $$\Sum_{k\leq d}\binom{d+1}k\cdot B_k=\Sum_{k\leq d}(d+1)\binom{d}{x}\frac{B_k}{d+1-k}$$
+  rw [← mul_one (d.succ : ℚ), ← bernoulli_def'' d, finset.mul_sum],
+  -- It suffices to show the summands are equal paorwise
+  apply finset.sum_congr rfl,
+  -- So assume k <= d are naturals and we've got to show
+  -- $$\binom{d+1}k=\frac{d+1}{d+1-k}\binom{d}{k}$$.
+  -- We do this by rewriting eveything in terms of factorials,
+  -- because it seems less painless than casting everything to nat (I tried).
+  -- Let's start from he beginning. Let `k ≤ d` be naturals.
+  intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in the right form
+  -- Because k ≤ d, \binom{d}{k} is not pathological.
+  -- We also remark that the binomial coefficient binom{d+1}{k} is not pathological
+  have hlinarith_solves_me_over_nat : k ≤ d + 1 := by linarith,
+  -- So we can rewrite eveyrthing in terms of factorials.
+  simp only [nat.choose_eq_factorial_div_factorial', hlinarith_solves_me_over_nat, hkd_nat],
+  -- We stay working over ℚ. Next we want to clear denominators. So we need to get
+  -- good at proving things are nonzero. First let's move our canonical fact k ≤ d up to ℚ.
+  have hcoe_can_do_me : (k : ℚ) ≤ d := by assumption_mod_cast,
+  -- Now we can use linarith to ensure all our denominators are nonzero
+  -- Next clear denominators. Lean seems to help even though linarith closes all the
+  -- obvious goals.
+  have hlinarith_solves_me_over_rat : (d : ℚ) + 1 - k ≠ 0 := by linarith,
+  -- why doesn't field_simp try linarith?
+  field_simp [hlinarith_solves_me_over_rat],
+  -- Turns out that we need to change (d + 1) - k to (d - k) + 1 in nat world
+  -- this is an annoying technical issue that probably `omega` should be solving,
+  rw [nat.succ_sub hkd_nat, factorial_succ, succ_eq_add_one], push_cast [hkd_nat],
+  --  rw (show d.succ - k = (d - k).succ, by omega), should work
+  -- and it's now finally trivial
+  ring,
+end
+
+
+@[simp] lemma sum_bernoulli (n : ℕ) :
+  ∑ k in finset.range n, ((n - k).binomial k : ℚ) * bernoulli k = n :=
 begin
   induction n with n ih, { simp },
   rw [finset.sum_range_succ],
