@@ -113,6 +113,21 @@ begin
   repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
 end
 
+open_locale nat
+
+theorem nat.binomial_spec' {a b : ℕ} : (a.binomial b : ℚ) = (a + b)! / (a! * b!) :=
+begin
+  symmetry,
+  rw [div_eq_iff, mul_comm],
+  { norm_cast,
+    rw nat.binomial_spec },
+  norm_cast,
+  apply mul_ne_zero;
+  apply nat.factorial_ne_zero,
+end
+
+open nat
+
 @[simp] lemma sum_bernoulli' (n : ℕ) :
   ∑ k in finset.range n, (k.binomial (n - k) : ℚ) * bernoulli k = n :=
 begin
@@ -128,44 +143,32 @@ begin
   -- We do this by rewriting eveything in terms of factorials,
   -- because it seems less painless than casting everything to nat (I tried).
   -- Let's start from he beginning. Let `k ≤ d` be naturals.
-  intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in the right form
-  -- Because k ≤ d, \binom{d}{k} is not pathological.
-  -- We also remark that the binomial coefficient binom{d+1}{k} is not pathological
-  have hlinarith_solves_me_over_nat : k ≤ d + 1 := by linarith,
-  -- So we can rewrite eveyrthing in terms of factorials.
-  simp only [nat.choose_eq_factorial_div_factorial', hlinarith_solves_me_over_nat, hkd_nat],
-  -- We stay working over ℚ. Next we want to clear denominators. So we need to get
-  -- good at proving things are nonzero. First let's move our canonical fact k ≤ d up to ℚ.
-  have hcoe_can_do_me : (k : ℚ) ≤ d := by assumption_mod_cast,
+  intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in a ghandy form.
+  -- But do I ever use it?
+  -- Actually, maybe the right form is this:
+  have hmagic : k + (d - k) = d := nat.add_sub_cancel' hkd_nat, -- what doors does this unlock?
+  -- cancel bernoullis,
+  rw ← mul_assoc, congr',
+  simp [binomial_spec', succ_eq_add_one],
+  have hfactorials_arent_zero_and_products_arent_zero1 : (k! : ℚ) * ↑(d + 1 - k)! ≠ 0,
+  { apply mul_ne_zero;
+    norm_cast;
+    apply factorial_ne_zero },
+  have hlinarith_can_do_me : (d : ℚ)- k + 1 ≠ 0 := by linarith [(show (k : ℚ) ≤ d, by assumption_mod_cast)],
+  have hfactorials_arent_zero_and_products_arent_zero2 : (k! : ℚ) * ↑(d - k)! * (↑d - ↑k + 1) ≠ 0 := mul_ne_zero (mul_ne_zero (by norm_cast; exact factorial_ne_zero _) (by norm_cast; exact factorial_ne_zero _)) hlinarith_can_do_me,
+  field_simp [hfactorials_arent_zero_and_products_arent_zero1, hfactorials_arent_zero_and_products_arent_zero2],
+  --have hcoe_can_do_me : (k : ℚ) ≤ d := by assumption_mod_cast,
   -- Now we can use linarith to ensure all our denominators are nonzero
   -- Next clear denominators. Lean seems to help even though linarith closes all the
   -- obvious goals.
-  have hlinarith_solves_me_over_rat : (d : ℚ) + 1 - k ≠ 0 := by linarith,
   -- why doesn't field_simp try linarith?
-  field_simp [hlinarith_solves_me_over_rat],
   -- Turns out that we need to change (d + 1) - k to (d - k) + 1 in nat world
   -- this is an annoying technical issue that probably `omega` should be solving,
   rw [nat.succ_sub hkd_nat, factorial_succ, succ_eq_add_one], push_cast [hkd_nat],
-  --  rw (show d.succ - k = (d - k).succ, by omega), should work
-  -- and it's now finally trivial
-  ring,
-end
-
-
-@[simp] lemma sum_bernoulli (n : ℕ) :
-  ∑ k in finset.range n, ((n - k).binomial k : ℚ) * bernoulli k = n :=
-begin
-  induction n with n ih, { simp },
-  rw [finset.sum_range_succ],
-  rw [nat.choose_succ_self_right],
-  rw [bernoulli_def, mul_sub, mul_one, sub_add_eq_add_sub, sub_eq_iff_eq_add],
-  rw [add_left_cancel_iff, finset.mul_sum, finset.sum_congr rfl],
-  intros k hk, rw finset.mem_range at hk,
-  rw [mul_div_right_comm, ← mul_assoc],
-  congr' 1,
-  rw [← mul_div_assoc, eq_div_iff],
-  { rw [mul_comm ((n+1 : ℕ) : ℚ)],
-    have hk' : k ≤ n + 1, by linarith,
-    rw_mod_cast nat.choose_mul_succ_eq n k },
-  { contrapose! hk with H, rw sub_eq_zero at H, norm_cast at H, linarith }
+  norm_cast, -- now a question over nat!
+  rw [← factorial_succ, mul_right_comm, mul_assoc, ←factorial_succ],
+  congr',
+  rw factorial_succ,congr',
+  -- lol that is somehow beautiful
+  convert nat.add_sub_cancel' hkd_nat,
 end
