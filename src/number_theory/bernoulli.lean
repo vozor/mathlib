@@ -103,45 +103,48 @@ finset.sum_bij' :
      (∀ (a : γ) (ha : a ∈ t), i (j a ha) _ = a) →
      ∑ (x : α) in s, f x = ∑ (x : γ) in t, g x
 -/
+
+open finset
+
+@[simp] lemma finset.mem_range_succ_iff {a b : ℕ} : a ∈ finset.range b.succ ↔ a ≤ b :=
+by simp only [nat.lt_succ_iff, mem_range]
+
+lemma sum_range_succ_eq_sum_antidiagonal {M : Type*} [add_comm_monoid M]
+  (f : ℕ → ℕ → M) (n : ℕ) : ∑ k in range n.succ, f k (n - k) =
+    ∑ ij in finset.nat.antidiagonal n, f ij.1 ij.2 :=
+begin
+  refine finset.sum_bij'
+  (λ a _, (a, n - a) : Π (a : ℕ), a ∈ finset.range n.succ → ℕ × ℕ)
+  _ _
+  (λ (ij : ℕ × ℕ) _, ij.1)
+  _ _ _;
+  try {simp},
+  { exact λ _, nat.add_sub_cancel', },
+  { intros _ _, exact nat.le.intro },
+  { rintro a b rfl, exact norm_num.sub_nat_pos (a + b) a b rfl },
+end
+
+lemma this_is_so_stupid (n : ℕ) :
+∑ (k : ℕ) in range n.succ, ↑(k.binomial (n - k)) / (↑n - ↑k + 1) * bernoulli k
+=
+∑ (k : ℕ) in range n.succ, ↑(k.binomial (n - k)) / ((n - k : ℕ) + 1) * bernoulli k
+:=
+begin
+  apply finset.sum_congr rfl,
+  intros k hk,
+  congr',
+  exact (nat.cast_sub (finset.mem_range_succ_iff.mp hk)).symm,
+end
+
 lemma bernoulli_spec' (n : ℕ) :
   ∑ k in finset.nat.antidiagonal n,
   (k.1.binomial k.2 : ℚ) / (k.2 + 1) * bernoulli k.1 = 1 :=
 begin
-  conv_rhs {rw ← bernoulli_spec n},
-  apply finset.sum_bij' (λ (ij : ℕ × ℕ) _, ij.1),
-  dsimp, sorry end #exit
-  refine @@finset.sum_bij' _ (λ ij, i.1) (λ (k : ℕ), (k.binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k) (begin sorry end) _ _ _ _ _ _,
-  repeat {sorry},
+  convert bernoulli_spec n using 1,
+  rw this_is_so_stupid,
+  symmetry,
+  convert sum_range_succ_eq_sum_antidiagonal (λ i j, (i.binomial j : ℚ) / (j + 1) * bernoulli i) n,
 end
-#exit
-
-   (λ (i ∈ finset.nat.antidiagonal n), i.1)
-  (by {
-    -- next line makes goal insolvable
-    -- rintro ⟨i, j⟩ h, simp [h, nat.lt_succ_iff, nat.le.intro] at *, sorry})
-    rintro ⟨i, j⟩ h, have : i + j = n, simpa using h,
-     simp [nat.lt_succ_iff, nat.le.intro this] } )
-  _
-  (λ k _, (k, n - k))
-  _ _ _,
-  { begin
-    rintros ⟨i, j⟩ h,
-    simp only [finset.nat.mem_antidiagonal] at h,
-    subst h,
-    dsimp,
-    simp [-finset.sum_range_succ],
-    squeeze_simp,
-
-    sorry
-  end}, -- looks messy?
-  { -- annoying
-    by {simp, omega}},
-  { by {simp, omega}},
-  { by {simp }},
-end
-
-#print finset.prod_bij
-#print finset.sum_bij
 
 @[simp] lemma bernoulli_zero  : bernoulli 0 = 1   := rfl
 @[simp] lemma bernoulli_one   : bernoulli 1 = 1/2 :=
@@ -167,15 +170,13 @@ end
 
 open_locale nat
 
-theorem nat.binomial_spec' {a b : ℕ} : (a.binomial b : ℚ) = (a + b)! / (a! * b!) :=
+lemma what_am_i_doing_wrong (n : ℕ) : ∑ (k : ℕ) in range n.succ, ↑(k.binomial (n.succ - k)) * bernoulli k =
+∑ (k : ℕ) in range n.succ, ↑(k.binomial (n - k).succ) * bernoulli k :=
 begin
-  symmetry,
-  rw [div_eq_iff, mul_comm],
-  { norm_cast,
-    rw nat.binomial_spec },
-  norm_cast,
-  apply mul_ne_zero;
-  apply nat.factorial_ne_zero,
+  apply finset.sum_congr rfl,
+  intros k hk,
+  congr',
+  refine nat.succ_sub (finset.mem_range_succ_iff.mp hk),
 end
 
 open nat
@@ -187,89 +188,16 @@ begin
   cases n with d, simp, -- checking special case n = 0 with `simp`
   -- n = d + 1 case: By definition of B_d, goal obviously equivalent to
   -- $$\Sum_{k\leq d}\binom{d+1}k\cdot B_k=\Sum_{k\leq d}(d+1)\binom{d}{x}\frac{B_k}{d+1-k}$$
-  rw [← mul_one (d.succ : ℚ), ← bernoulli_spec d, finset.mul_sum],
-  -- It suffices to show the summands are equal pairwise
+  rw [← mul_one (d.succ : ℚ), ← bernoulli_spec' d, finset.mul_sum],
+  -- change other sum to antidiag
+  rw what_am_i_doing_wrong,
+  rw sum_range_succ_eq_sum_antidiagonal (λ k dmk, (k.binomial dmk.succ : ℚ) * bernoulli k) d,
   apply finset.sum_congr rfl,
-  -- So assume k <= d are naturals and all we've got to show is
-  -- $$\binom{d+1}k=\frac{d+1}{d+1-k}\binom{d}{k}$$.
-  -- We do this by rewriting eveything in terms of factorials,
-  -- because it seems less painless than casting everything to nat (I tried).
-  -- Let's start from he beginning. Let `k ≤ d` be naturals.
-  intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in a ghandy form.
-  -- But do I ever use it?
-  -- now
-  -- cancel bernoullis,
+  rintro ⟨i, j⟩ hd, rw finset.nat.mem_antidiagonal at hd, subst hd, dsimp,
+  -- eliminate bernoulli
   rw ← mul_assoc, congr',
-  -- now factorial definition of `binomial`
-  simp [binomial_spec', succ_eq_add_one],
-  -- the block is now k + (d - k), which is d by hkd_nat
-  have hmagic : k + (d - k) = d := nat.add_sub_cancel' hkd_nat,
-  rw hmagic,
-  -- now it all comes out really nicely.
-  -- except the next 7 lines should just be `field_simp` or maybe some specialised "clear denominator" tactic.
-  have hfactorials_arent_zero_and_products_arent_zero1 : (k! : ℚ) * ↑(d + 1 - k)! ≠ 0,
-  { apply mul_ne_zero;
-    norm_cast;
-    apply factorial_ne_zero },
-  have hlinarith_mod_cast_can_do_me : (d : ℚ)- k + 1 ≠ 0 := by linarith [(show (k : ℚ) ≤ d, by assumption_mod_cast)],
-  have hfactorials_arent_zero_and_products_arent_zero2 : (k! : ℚ) * ↑(d - k)! * (↑d - ↑k + 1) ≠ 0 := mul_ne_zero (mul_ne_zero (by norm_cast; exact factorial_ne_zero _) (by norm_cast; exact factorial_ne_zero _)) hlinarith_mod_cast_can_do_me,--
-  field_simp [hfactorials_arent_zero_and_products_arent_zero1, hfactorials_arent_zero_and_products_arent_zero2],
-  --have hcoe_can_do_me : (k : ℚ) ≤ d := by assumption_mod_cast,
-  -- Now we can use linarith to ensure all our denominators are nonzero
-  -- Next clear denominators. Lean seems to help even though linarith closes all the
-  -- obvious goals.
-  -- why doesn't field_simp try linarith?
-  -- Turns out that we need to change (d + 1) - k to (d - k) + 1 in nat world
-  -- this is an annoying technical issue that probably `omega` should be solving,
---  rw [nat.succ_sub hkd_nat, factorial_succ, succ_eq_add_one], push_cast [hkd_nat],
-  norm_cast, -- now a question over nat! -- we have good tactics over nat.
-  simp only [← succ_eq_add_one, factorial_succ, succ_sub hkd_nat, hmagic],
-  ring,
-end
-
-@[simp] lemma sum_bernoulli'' (n : ℕ) :
-  ∑ k in finset.range n, (k.binomial (n - k) : ℚ) * bernoulli k = n :=
-begin
-  -- n = 0 is a special case so let's prove it for n of the form d + 1.
-  cases n with d, simp, -- checking special case n = 0 with `simp`
-  -- n = d + 1 case: By definition of B_d, goal obviously equivalent to
-  -- $$\Sum_{k\leq d}\binom{d+1}k\cdot B_k=\Sum_{k\leq d}(d+1)\binom{d}{x}\frac{B_k}{d+1-k}$$
-  rw [← mul_one (d.succ : ℚ), ← bernoulli_spec d, finset.mul_sum],
-  -- It suffices to show the summands are equal pairwise
-  apply finset.sum_congr rfl,
-  -- So assume k <= d are naturals and all we've got to show is
-  -- $$\binom{d+1}k=\frac{d+1}{d+1-k}\binom{d}{k}$$.
-  -- We do this by rewriting eveything in terms of factorials,
-  -- because it seems less painless than casting everything to nat (I tried).
-  -- Let's start from he beginning. Let `k ≤ d` be naturals.
-  intros k hkd_nat, rw [finset.mem_range, nat.lt_succ_iff] at hkd_nat, -- now in a ghandy form.
-  -- But do I ever use it?
-  -- now
-  -- cancel bernoullis,
-  rw ← mul_assoc, congr',
-  -- now factorial definition of `binomial`
-  simp [binomial_spec', succ_eq_add_one],
-  -- the block is now k + (d - k), which is d by hkd_nat
-  have hmagic : k + (d - k) = d := nat.add_sub_cancel' hkd_nat,
-  rw hmagic,
-  -- now it all comes out really nicely.
-  -- except the next 7 lines should just be `field_simp` or maybe some specialised "clear denominator" tactic.
-  have hfactorials_arent_zero_and_products_arent_zero1 : (k! : ℚ) * ↑(d + 1 - k)! ≠ 0,
-  { apply mul_ne_zero;
-    norm_cast;
-    apply factorial_ne_zero },
-  have hlinarith_mod_cast_can_do_me : (d : ℚ)- k + 1 ≠ 0 := by linarith [(show (k : ℚ) ≤ d, by assumption_mod_cast)],
-  have hfactorials_arent_zero_and_products_arent_zero2 : (k! : ℚ) * ↑(d - k)! * (↑d - ↑k + 1) ≠ 0 := mul_ne_zero (mul_ne_zero (by norm_cast; exact factorial_ne_zero _) (by norm_cast; exact factorial_ne_zero _)) hlinarith_mod_cast_can_do_me,--
-  field_simp [hfactorials_arent_zero_and_products_arent_zero1, hfactorials_arent_zero_and_products_arent_zero2],
-  --have hcoe_can_do_me : (k : ℚ) ≤ d := by assumption_mod_cast,
-  -- Now we can use linarith to ensure all our denominators are nonzero
-  -- Next clear denominators. Lean seems to help even though linarith closes all the
-  -- obvious goals.
-  -- why doesn't field_simp try linarith?
-  -- Turns out that we need to change (d + 1) - k to (d - k) + 1 in nat world
-  -- this is an annoying technical issue that probably `omega` should be solving,
---  rw [nat.succ_sub hkd_nat, factorial_succ, succ_eq_add_one], push_cast [hkd_nat],
-  norm_cast, -- now a question over nat! -- we have good tactics over nat.
-  simp only [← succ_eq_add_one, factorial_succ, succ_sub hkd_nat, hmagic],
+  field_simp [(show (j : ℚ) + 1 ≠ 0, from ne_of_gt (by norm_cast; linarith))],
+  norm_cast,
+  rw succ_mul_binomial',
   ring,
 end
