@@ -89,12 +89,55 @@ lemma bernoulli_spec (n : ℕ) :
   ∑ k in finset.range n.succ, (k.binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k = 1 :=
 by simp [finset.sum_range_succ, bernoulli_def n]
 
+/-
+finset.sum_bij' :
+  ∀ {X M Y : Type} [add_comm_monoid M]
+    {s : finset X} {t : finset Y}
+    {f : X → M} {g : Y → M}
+    (i : Π (a ∈ s) → γ)
+      (hi : ∀ (a ∈ s), i a ha ∈ t)
+      (h37 : ∀ (a ∈ s), f a = g (i a ha))
+    (j : Π (a ∈ t) → α)
+     (hj : ∀ (a ∈ t), j a ha ∈ s),
+     (∀ (a : α) (ha : a ∈ s), j (i a ha) _ = a) →
+     (∀ (a : γ) (ha : a ∈ t), i (j a ha) _ = a) →
+     ∑ (x : α) in s, f x = ∑ (x : γ) in t, g x
+-/
 lemma bernoulli_spec' (n : ℕ) :
-  (∑ k in finset.nat.antidiagonal n,
-    let (i, j) := k in (i.binomial j : ℚ) / (j + 1) * bernoulli i) = 1 :=
+  ∑ k in finset.nat.antidiagonal n,
+  (k.1.binomial k.2 : ℚ) / (k.2 + 1) * bernoulli k.1 = 1 :=
 begin
-  rw ← bernoulli_spec n,
-  apply finset.sum_bij,
+  conv_rhs {rw ← bernoulli_spec n},
+  apply finset.sum_bij' (λ (ij : ℕ × ℕ) _, ij.1),
+  dsimp, sorry end #exit
+  refine @@finset.sum_bij' _ (λ ij, i.1) (λ (k : ℕ), (k.binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k) (begin sorry end) _ _ _ _ _ _,
+  repeat {sorry},
+end
+#exit
+
+   (λ (i ∈ finset.nat.antidiagonal n), i.1)
+  (by {
+    -- next line makes goal insolvable
+    -- rintro ⟨i, j⟩ h, simp [h, nat.lt_succ_iff, nat.le.intro] at *, sorry})
+    rintro ⟨i, j⟩ h, have : i + j = n, simpa using h,
+     simp [nat.lt_succ_iff, nat.le.intro this] } )
+  _
+  (λ k _, (k, n - k))
+  _ _ _,
+  { begin
+    rintros ⟨i, j⟩ h,
+    simp only [finset.nat.mem_antidiagonal] at h,
+    subst h,
+    dsimp,
+    simp [-finset.sum_range_succ],
+    squeeze_simp,
+
+    sorry
+  end}, -- looks messy?
+  { -- annoying
+    by {simp, omega}},
+  { by {simp, omega}},
+  { by {simp }},
 end
 
 #print finset.prod_bij
