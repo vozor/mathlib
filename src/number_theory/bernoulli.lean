@@ -132,8 +132,7 @@ lemma this_is_so_stupid (n : ℕ) :
 begin
   apply finset.sum_congr rfl,
   intros k hk,
-  congr',
-  exact (nat.cast_sub (finset.mem_range_succ_iff.mp hk)).symm,
+  rw nat.cast_sub (finset.mem_range_succ_iff.mp hk),
 end
 
 lemma bernoulli_spec' (n : ℕ) :
@@ -175,8 +174,7 @@ lemma what_am_i_doing_wrong (n : ℕ) : ∑ (k : ℕ) in range n.succ, ↑(k.bin
 begin
   apply finset.sum_congr rfl,
   intros k hk,
-  congr',
-  refine nat.succ_sub (finset.mem_range_succ_iff.mp hk),
+  rw nat.succ_sub (finset.mem_range_succ_iff.mp hk),
 end
 
 open nat
