@@ -17,16 +17,21 @@ number theory.
 ## Mathematical overview
 
 The Bernoulli numbers $(B_0, B_1, B_2, \ldots)=(1, 1/2, 1/6, 0, -1/30, \ldots)$ are
-a sequence of rational numbers. They show up in the Taylor series of trigonometric
-and hyperbolic functions, and they are related to the values that the Riemann Zeta
-function takes at negative integers. If $2 \leq k$ is even then
+a sequence of rational numbers. They show up in the formula for the the sum
+of the first $n$ `k`th powers, they are related to the Taylor series of
+certain trigonometric and hyperbolic functions, and also show up in the values
+that the Riemann Zeta function takes both at both negative and positive integers.
+For example If $2 \leq k$ is even then
+
+-- TODO fix rational constant
 
 $$\sum_{n\geq1}n^{-k}=B_k\pi^k.$$
 
-Note however that many of these things are not yet formalised.
+Note however that many of these results are not yet formalised in Lean.
 
 The Bernoulli numbers can be formally defined thus:
 
+-- goal
 $$\sum B_n\frac{t^n}{n!}=\frac{t}{1-e^{-t}}$$
 
 although that happens to not be the definition in mathlib (this is an *implementation
