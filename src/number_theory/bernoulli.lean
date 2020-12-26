@@ -18,15 +18,12 @@ number theory.
 
 The Bernoulli numbers $(B_0, B_1, B_2, \ldots)=(1, 1/2, 1/6, 0, -1/30, \ldots)$ are
 a sequence of rational numbers. They show up in the Taylor series of trigonometric
-and hyperbolic functions, and they are related to the values that the Riemann Zeta function
-takes at negative integers. If $2 \leq k$ is even then
+and hyperbolic functions, and they are related to the values that the Riemann Zeta
+function takes at negative integers. If $2 \leq k$ is even then
 
 $$\sum_{n\geq1}n^{-k}=B_k\pi^k.$$
 
-
-relate  multiples of products of powers of `π` and)
-special values of the Riemann zeta function, although many of these things are not
-yet formalised.
+Note however that many of these things are not yet formalised.
 
 The Bernoulli numbers can be formally defined thus:
 
@@ -34,10 +31,6 @@ $$\sum B_n\frac{t^n}{n!}=\frac{t}{1-e^{-t}}$$
 
 although that happens to not be the definition in mathlib (this is an *implementation
 detail* though, and need not concern the mathematician).
-
--- TODO : prove the displayed equation above
-
-Note: Not all of these facts are available in mathlib.
 
 ## Implementation detail
 
@@ -89,25 +82,10 @@ lemma bernoulli_spec (n : ℕ) :
   ∑ k in finset.range n.succ, (k.binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k = 1 :=
 by simp [finset.sum_range_succ, bernoulli_def n]
 
-/-
-finset.sum_bij' :
-  ∀ {X M Y : Type} [add_comm_monoid M]
-    {s : finset X} {t : finset Y}
-    {f : X → M} {g : Y → M}
-    (i : Π (a ∈ s) → γ)
-      (hi : ∀ (a ∈ s), i a ha ∈ t)
-      (h37 : ∀ (a ∈ s), f a = g (i a ha))
-    (j : Π (a ∈ t) → α)
-     (hj : ∀ (a ∈ t), j a ha ∈ s),
-     (∀ (a : α) (ha : a ∈ s), j (i a ha) _ = a) →
-     (∀ (a : γ) (ha : a ∈ t), i (j a ha) _ = a) →
-     ∑ (x : α) in s, f x = ∑ (x : γ) in t, g x
--/
+@[simp] lemma finset.mem_range_succ_iff {a b : ℕ} : a ∈ finset.range b.succ ↔ a ≤ b :=
+by simp only [nat.lt_succ_iff, finset.mem_range]
 
 open finset
-
-@[simp] lemma finset.mem_range_succ_iff {a b : ℕ} : a ∈ finset.range b.succ ↔ a ≤ b :=
-by simp only [nat.lt_succ_iff, mem_range]
 
 lemma sum_range_succ_eq_sum_antidiagonal {M : Type*} [add_comm_monoid M]
   (f : ℕ → ℕ → M) (n : ℕ) : ∑ k in range n.succ, f k (n - k) =
@@ -115,23 +93,24 @@ lemma sum_range_succ_eq_sum_antidiagonal {M : Type*} [add_comm_monoid M]
 begin
   refine finset.sum_bij'
   (λ a _, (a, n - a) : Π (a : ℕ), a ∈ finset.range n.succ → ℕ × ℕ)
-  _ _
+  _ (by simp)
   (λ (ij : ℕ × ℕ) _, ij.1)
-  _ _ _;
-  try {simp},
-  { exact λ _, nat.add_sub_cancel', },
-  { intros _ _, exact nat.le.intro },
-  { rintro a b rfl, exact norm_num.sub_nat_pos (a + b) a b rfl },
+  _ (by simp) _,
+  { intros a ha, simp [nat.add_sub_cancel' (mem_range_succ_iff.1 ha)], },
+  { intros _ ha, simp [nat.le.intro (nat.mem_antidiagonal.1 ha)] },
+  { rintro ⟨i, j⟩ ha, ext, refl, rw ← (nat.mem_antidiagonal.1 ha), exact nat.add_sub_cancel_left _ _ },
 end
 
 lemma this_is_so_stupid (n : ℕ) :
-∑ (k : ℕ) in range n.succ, ↑(k.binomial (n - k)) / (↑n - ↑k + 1) * bernoulli k
+∑ (k : ℕ) in range n.succ, (k.binomial (n - k) : ℚ) / (n - k + 1) * bernoulli k
 =
-∑ (k : ℕ) in range n.succ, ↑(k.binomial (n - k)) / ((n - k : ℕ) + 1) * bernoulli k
+∑ (k : ℕ) in range n.succ, k.binomial (n - k) / ((n - k : ℕ) + 1) * bernoulli k
 :=
 begin
   apply finset.sum_congr rfl,
   intros k hk,
+-- next line was written with
+--  congr', symmetry, apply nat.cast_sub, library_search,
   rw nat.cast_sub (finset.mem_range_succ_iff.mp hk),
 end
 
@@ -148,23 +127,19 @@ end
 @[simp] lemma bernoulli_zero  : bernoulli 0 = 1   := rfl
 @[simp] lemma bernoulli_one   : bernoulli 1 = 1/2 :=
 begin
-  rw [bernoulli_def],
-  repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
+  rw [bernoulli_def, sum_range_one], norm_num
 end
 @[simp] lemma bernoulli_two   : bernoulli 2 = 1/6 :=
 begin
-  rw [bernoulli_def],
-  repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
+  rw [bernoulli_def, sum_range_succ, sum_range_one], norm_num
 end
 @[simp] lemma bernoulli_three : bernoulli 3 = 0   :=
 begin
-  rw [bernoulli_def],
-  repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
+  rw [bernoulli_def, sum_range_succ, sum_range_succ, sum_range_one], norm_num,
 end
 @[simp] lemma bernoulli_four  : bernoulli 4 = -1/30 :=
 begin
-  rw [bernoulli_def],
-  repeat { try { rw [finset.sum_range_succ] }, try { rw [nat.choose_succ_succ] }, simp, norm_num1 }
+  rw [bernoulli_def, sum_range_succ, sum_range_succ, sum_range_succ, sum_range_one], norm_num,
 end
 
 open_locale nat
